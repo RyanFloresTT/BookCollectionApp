@@ -39,7 +39,7 @@ To get started with BookCollection, follow these steps:
     ```
 
 4. **Access the application**:
-    Open your web browser and navigate to `http://localhost:3000` to start using BookCollection.
+    Open your web browser and navigate to `http://localhost:5000` to start using BookCollection.
 
 ---
 
