@@ -15,35 +15,7 @@ import {
 } from '@mui/material';
 import { useAuth0 } from '@auth0/auth0-react';
 import api from '../../services/api';
-
-const genres = [
-  'Fiction',
-  'Non-Fiction',
-  'Science Fiction',
-  'Fantasy',
-  'Mystery',
-  'Thriller',
-  'Romance',
-  'Horror',
-  'Biography',
-  'History',
-  'Self-Help',
-  'Health',
-  'Travel',
-  'Guide',
-  'Religion',
-  'Science',
-  'Math',
-  'Poetry',
-  'Comics',
-  'Art',
-  'Cookbooks',
-  'Diaries',
-  'Journals',
-  'Series',
-  'Trilogy',
-  'Anthology',
-];
+import { genres } from './genres';
 
 const ManualBookEntry: React.FC = () => {
   const { isAuthenticated, getAccessTokenSilently } = useAuth0();

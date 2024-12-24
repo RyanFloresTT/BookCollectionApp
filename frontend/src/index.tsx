@@ -6,12 +6,15 @@ import CssBaseline from '@mui/material/CssBaseline';
 import App from './App';
 import theme from './theme';
 
+console.log('REACT_APP_AUTH0_DOMAIN:', process.env.REACT_APP_AUTH0_DOMAIN);
+console.log('REACT_APP_AUTH0_CLIENT_ID:', process.env.REACT_APP_AUTH0_CLIENT_ID);
+
 const root = ReactDOM.createRoot(document.getElementById('root') as HTMLElement);
 
 root.render(
   <Auth0Provider
-    domain={process.env.AUTH0_DOMAIN || ''}
-    clientId={process.env.AUTH0_CLIENT_ID || ''}
+    domain={process.env.REACT_APP_AUTH0_DOMAIN || 'unknown-domain'}
+    clientId={process.env.REACT_APP_AUTH0_CLIENT_ID || 'unknown-client-id'}
     authorizationParams={{
       redirect_uri: window.location.origin,
       audience: "bookcollection.api",
