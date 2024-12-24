@@ -48,12 +48,12 @@ func (bc *BookController) SearchBooks(w http.ResponseWriter, r *http.Request) {
 // AddBook handles POST /api/books/add
 func (bc *BookController) AddBook(w http.ResponseWriter, r *http.Request) {
 	var req struct {
-		Title       string  `json:"title"`
-		Author      string  `json:"author"`
-		Description string  `json:"description"`
-		CoverImage  string  `json:"coverImage"`
-		Rating      float64 `json:"rating"`
-		PageCount   uint    `json:"page_count"`
+		Title      string  `json:"title"`
+		Author     string  `json:"author"`
+		CoverImage string  `json:"coverImage"`
+		Rating     float64 `json:"rating"`
+		PageCount  uint    `json:"page_count"`
+		Genre      string  `json:"genre"`
 	}
 
 	// Decode the request payload
@@ -112,13 +112,13 @@ func (bc *BookController) AddBook(w http.ResponseWriter, r *http.Request) {
 
 	// Create a new book
 	book := models.Book{
-		Title:       req.Title,
-		Author:      req.Author,
-		Description: req.Description,
-		CoverImage:  req.CoverImage,
-		Rating:      req.Rating,
-		PageCount:   req.PageCount,
-		UserID:      user.ID,
+		Title:      req.Title,
+		Author:     req.Author,
+		CoverImage: req.CoverImage,
+		Rating:     req.Rating,
+		PageCount:  req.PageCount,
+		UserID:     user.ID,
+		Genre:      req.Genre,
 	}
 
 	// Save the new book to the database

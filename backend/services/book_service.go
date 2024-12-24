@@ -63,12 +63,11 @@ func (s *BookService) fetchGoogleBooks(query string) ([]models.Book, error) {
 		}
 
 		book := models.Book{
-			Title:       bk.VolumeInfo.Title,
-			Author:      bk.VolumeInfo.Authors[0],
-			Description: bk.VolumeInfo.Description,
-			CoverImage:  bk.VolumeInfo.ImageLinks.Thumbnail,
-			Rating:      bk.VolumeInfo.AverageRating,
-			PageCount:   uint(bk.VolumeInfo.PageCount),
+			Title:      bk.VolumeInfo.Title,
+			Author:     bk.VolumeInfo.Authors[0],
+			CoverImage: bk.VolumeInfo.ImageLinks.Thumbnail,
+			Rating:     bk.VolumeInfo.AverageRating,
+			PageCount:  uint(bk.VolumeInfo.PageCount),
 		}
 
 		key := fmt.Sprintf("%s-%s", book.Title, book.Author)
@@ -109,7 +108,6 @@ func (s *BookService) fetchOpenLibraryBooks(query string) ([]models.Book, error)
 	}
 
 	var author string
-	var firstSentence string
 
 	// Convert Open Library Books data to Book model
 	for _, bk := range result.Docs {
@@ -124,19 +122,12 @@ func (s *BookService) fetchOpenLibraryBooks(query string) ([]models.Book, error)
 			author = "Unknown Author"
 		}
 
-		if len(bk.FirstSentence) > 0 {
-			firstSentence = bk.AuthorName[0]
-		} else {
-			firstSentence = bk.Title
-		}
-
 		book := models.Book{
-			Title:       bk.Title,
-			Author:      author,
-			Description: firstSentence,
-			CoverImage:  fmt.Sprintf("https://covers.openlibrary.org/b/id/%v-L.jpg", bk.CoverI),
-			Rating:      bk.RatingsAverage,
-			PageCount:   uint(bk.NumberOfPagesMedian),
+			Title:      bk.Title,
+			Author:     author,
+			CoverImage: fmt.Sprintf("https://covers.openlibrary.org/b/id/%v-L.jpg", bk.CoverI),
+			Rating:     bk.RatingsAverage,
+			PageCount:  uint(bk.NumberOfPagesMedian),
 		}
 		books = append(books, book)
 	}

@@ -4,13 +4,13 @@ import "gorm.io/gorm"
 
 type Book struct {
 	gorm.Model
-	Title       string  `json:"title" gorm:"not null"`
-	Author      string  `json:"author" gorm:"not null"`
-	Description string  `json:"description"`
-	CoverImage  string  `json:"coverImage"`
-	Rating      float64 `json:"rating"`
-	PageCount   uint    `json:"page_count"`
-	UserID      uint    `json:"user_id"`
+	Title      string  `json:"title" gorm:"not null"`
+	Author     string  `json:"author" gorm:"not null"`
+	CoverImage string  `json:"coverImage"`
+	Rating     float64 `json:"rating"`
+	PageCount  uint    `json:"page_count"`
+	Genre      string  `json:"genre"`
+	UserID     uint    `json:"user_id"`
 }
 
 type GoogleBookResponse struct {

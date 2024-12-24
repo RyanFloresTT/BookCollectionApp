@@ -4,3 +4,8 @@ node_modules
 /build
 /dist
 .DS_Store
+coverage
+*.cache
+*.tmp
+*.swp
+*.bak
