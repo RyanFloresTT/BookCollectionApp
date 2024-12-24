@@ -19,10 +19,9 @@ type BookService struct {
 	Rdb *redis.Client
 }
 
-func NewBookService(db *gorm.DB, rdb *redis.Client) BookService {
+func NewBookService(db *gorm.DB) BookService {
 	return BookService{
-		DB:  db,
-		Rdb: rdb,
+		DB: db,
 	}
 }
 

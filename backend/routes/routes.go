@@ -7,12 +7,11 @@ import (
 	"github.com/RyanFloresTT/Book-Collection-Backend/middleware"
 	chimiddleware "github.com/go-chi/chi/middleware"
 	"github.com/go-chi/chi/v5"
-	"github.com/go-redis/redis/v8"
 	"github.com/rs/cors"
 	"gorm.io/gorm"
 )
 
-func SetupRouter(r *chi.Mux, db *gorm.DB, rdb *redis.Client) {
+func SetupRouter(r *chi.Mux, db *gorm.DB) {
 
 	// Middleware
 	r.Use(chimiddleware.Logger)
@@ -28,7 +27,7 @@ func SetupRouter(r *chi.Mux, db *gorm.DB, rdb *redis.Client) {
 	r.Use(corsMiddleware.Handler)
 
 	// Controllers
-	bookController := controllers.NewBookController(db, rdb)
+	bookController := controllers.NewBookController(db)
 
 	// Routes
 	r.Route("/api/books", func(r chi.Router) {

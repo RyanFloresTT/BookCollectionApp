@@ -3,7 +3,6 @@
 package main
 
 import (
-	"context"
 	"log"
 	"net/http"
 	"os"
@@ -11,20 +10,16 @@ import (
 	"github.com/RyanFloresTT/Book-Collection-Backend/initializers"
 	"github.com/RyanFloresTT/Book-Collection-Backend/routes"
 	"github.com/go-chi/chi/v5"
-	"github.com/go-redis/redis/v8"
 	"gorm.io/gorm"
 )
 
 var (
-	db  *gorm.DB
-	rdb *redis.Client
-	ctx = context.Background()
+	db *gorm.DB
 )
 
 func init() {
-	// Initialize Database and Redis
+	// Initialize Database
 	db = initializers.InitializeDatabase()
-	rdb = initializers.InitializeRedis().WithContext(ctx)
 }
 
 func main() {
@@ -32,7 +27,7 @@ func main() {
 	// Initialize Chi router
 	r := chi.NewRouter()
 
-	routes.SetupRouter(r, db, rdb)
+	routes.SetupRouter(r, db)
 
 	// Start the server
 	port := os.Getenv("PORT")

@@ -8,7 +8,6 @@ import (
 	"github.com/RyanFloresTT/Book-Collection-Backend/models"
 	"github.com/RyanFloresTT/Book-Collection-Backend/services"
 	"github.com/go-chi/chi/v5"
-	"github.com/go-redis/redis/v8"
 	"gorm.io/gorm"
 )
 
@@ -16,9 +15,9 @@ type BookController struct {
 	BookService services.BookService
 }
 
-func NewBookController(db *gorm.DB, rdb *redis.Client) *BookController {
+func NewBookController(db *gorm.DB) *BookController {
 	return &BookController{
-		BookService: services.NewBookService(db, rdb),
+		BookService: services.NewBookService(db),
 	}
 }
 
@@ -52,7 +51,7 @@ func (bc *BookController) AddBook(w http.ResponseWriter, r *http.Request) {
 		Author     string  `json:"author"`
 		CoverImage string  `json:"coverImage"`
 		Rating     float64 `json:"rating"`
-		PageCount  uint    `json:"page_count"`
+		PageCount  uint    `json:"pageCount"`
 		Genre      string  `json:"genre"`
 	}
 
