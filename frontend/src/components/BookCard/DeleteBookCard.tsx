@@ -97,13 +97,6 @@ const DeleteBookCard: React.FC<DeleteBookCardProps> = ({ book, onDeleteSuccess }
           <Typography variant="subtitle2" color="text.secondary">
             {book.author}
           </Typography>
-          {book.description && (
-            <Typography variant="body2" color="text.secondary">
-              {book.description.length > 100
-                ? `${book.description.substring(0, 100)}...`
-                : book.description}
-            </Typography>
-          )}
         </CardContent>
         <Overlay>
           <IconButton onClick={handleDelete} color="secondary">

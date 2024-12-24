@@ -71,13 +71,6 @@ const BookCard: React.FC<BookCardProps> = ({ book, onAdd }) => {
         <Typography variant="subtitle2" color="text.secondary">
           {book.author}
         </Typography>
-        {book.description && (
-          <Typography variant="body2" color="text.secondary">
-            {book.description.length > 100
-              ? `${book.description.substring(0, 100)}...`
-              : book.description}
-          </Typography>
-        )}
       </CardContent>
       <Overlay>
         <Typography variant="h6">{book.title}</Typography>

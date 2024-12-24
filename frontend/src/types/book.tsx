@@ -2,7 +2,7 @@ export interface Book {
   ID: number;
   title: string;
   author: string;
-  description?: string;
+  genre?: string;
   coverImage?: string;
   rating?: number;
   pageCount?: number;
