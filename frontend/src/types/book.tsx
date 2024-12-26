@@ -5,6 +5,6 @@ export interface Book {
   genre?: string;
   coverImage?: string;
   rating?: number;
-  pageCount?: number;
+  page_count?: number;
   deleted_at?: string | null;
 }
