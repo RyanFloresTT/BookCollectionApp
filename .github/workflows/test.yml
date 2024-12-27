@@ -1,0 +1,53 @@
+name: CI/CD
+
+on:
+  pull_request:
+    branches: [ main ]
+  push:
+    branches: [ main ]
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Set up Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: '18'
+        cache: 'npm'
+        cache-dependency-path: './frontend/package-lock.json'
+
+    - name: Install dependencies
+      working-directory: ./frontend
+      run: npm ci
+
+    - name: TypeScript type check
+      working-directory: ./frontend
+      run: npm run type-check
+
+    - name: ESLint check
+      working-directory: ./frontend
+      run: npm run lint
+
+    - name: Run unit tests
+      working-directory: ./frontend
+      run: npm test -- --coverage --watchAll=false
+
+    - name: Upload coverage reports
+      uses: codecov/codecov-action@v3
+      with:
+        directory: ./frontend/coverage
+        flags: unittests
+
+    - name: Build project
+      working-directory: ./frontend
+      run: npm run build
+
+    - name: Analyze bundle size
+      uses: preactjs/compressed-size-action@v2
+      with:
+        repo-token: "${{ secrets.GITHUB_TOKEN }}"
+        pattern: "./frontend/build/**/*.{js,css,html,json}" 

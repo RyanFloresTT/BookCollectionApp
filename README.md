@@ -43,4 +43,7 @@ To get started with BookCollection, follow these steps:
 
 ---
 
+![CI/CD](https://github.com/RyanFloresTT/BookCollectionApp/actions/workflows/ci-cd.yml/badge.svg)
+[![codecov](https://codecov.io/gh/RyanFloresTT/BookCollectionApp/branch/main/graph/badge.svg)](https://codecov.io/gh/RyanFloresTT/BookCollectionApp)
+
 Thank you for checking out BookCollection! I hope this project demonstrates my ability to create and manage a full-stack application using modern technologies. If you have any questions or feedback, feel free to reach out.
