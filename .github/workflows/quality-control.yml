@@ -1,4 +1,4 @@
-name: CI/CD
+name: Quality Control
 
 on:
   pull_request:
