@@ -2,9 +2,9 @@ import React from 'react';
 import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
 import ButtonAppBar from './components/AppBar/ButtonAppBar';
 import Home from './pages/Home/Home';
-import CollectionPage from './pages/CollectionPage/CollectionPage';
 import StatsPage from './pages/StatsPage/StatsPage';
 import ProtectedRoute from './components/ProtectedRoute/ProtectedRoute';
+import Collection from './pages/Collection/Collection';
 
 const App: React.FC = () => {
   return (
@@ -16,7 +16,7 @@ const App: React.FC = () => {
           path="/collection" 
           element={
           <ProtectedRoute>
-            <CollectionPage />
+            <Collection />
           </ProtectedRoute>
         } />
         <Route 
