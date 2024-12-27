@@ -2,6 +2,7 @@ package routes
 
 import (
 	"net/http"
+	"os"
 
 	"github.com/RyanFloresTT/Book-Collection-Backend/controllers"
 	"github.com/RyanFloresTT/Book-Collection-Backend/middleware"
@@ -18,8 +19,13 @@ func SetupRouter(r *chi.Mux, db *gorm.DB) {
 	r.Use(chimiddleware.Recoverer)
 
 	// Initialize CORS
+	allowedOrigins := []string{"http://localhost:5000"}
+	if prodURL := os.Getenv("FRONTEND_URL"); prodURL != "" {
+		allowedOrigins = append(allowedOrigins, prodURL)
+	}
+
 	corsMiddleware := cors.New(cors.Options{
-		AllowedOrigins:   []string{"http://localhost:5000"},
+		AllowedOrigins:   allowedOrigins,
 		AllowedMethods:   []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
 		AllowedHeaders:   []string{"Authorization", "Content-Type"},
 		AllowCredentials: true,

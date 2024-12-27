@@ -16,6 +16,10 @@ import {
   Alert,
   Grid2,
   TextField,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
 } from '@mui/material';
 import { styled } from '@mui/material/styles';
 import DeleteIcon from '@mui/icons-material/Delete';
@@ -26,6 +30,7 @@ import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import api from '../../services/api';
 import { Book } from '../../types/book';
+import { genres } from '../ManualBookEntry/genres';
 
 interface DeleteBookCardProps {
   book: Book;
@@ -78,12 +83,13 @@ const DetailsPaper = styled(Paper)(({ theme }) => ({
   backgroundColor: theme.palette.background.paper,
 }));
 
-const DeleteBookCard: React.FC<DeleteBookCardProps> = ({ book, onDeleteSuccess }) => {
+const DeleteBookCard: React.FC<DeleteBookCardProps> = ({ book: initialBook, onDeleteSuccess }) => {
   const { getAccessTokenSilently } = useAuth0();
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
+  const [book, setBook] = useState<Book>(initialBook);
   const [startDate, setStartDate] = useState<Date | null>(book.started_at ? new Date(book.started_at) : null);
   const [finishDate, setFinishDate] = useState<Date | null>(book.finished_at ? new Date(book.finished_at) : null);
   const cardRef = useRef<HTMLDivElement>(null);
@@ -113,6 +119,12 @@ const DeleteBookCard: React.FC<DeleteBookCardProps> = ({ book, onDeleteSuccess }
       api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
       
       const response = await api.patch(`/books/${book.ID}`, {
+        title: book.title,
+        author: book.author,
+        coverImage: book.coverImage,
+        rating: book.rating,
+        pageCount: book.page_count,
+        genre: book.genre,
         started_at: startDate?.toISOString() || null,
         finished_at: finishDate?.toISOString() || null,
       });
@@ -120,7 +132,6 @@ const DeleteBookCard: React.FC<DeleteBookCardProps> = ({ book, onDeleteSuccess }
       if (response.status === 200) {
         setSuccess('Book updated successfully');
         setIsEditing(false);
-        // You might want to refresh the book data here
       } else {
         setError('Failed to update the book.');
       }
@@ -221,25 +232,80 @@ const DeleteBookCard: React.FC<DeleteBookCardProps> = ({ book, onDeleteSuccess }
               </Grid2>
               <Grid2 size={{ xs: 12, md: 8 }}>
                 <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                  <Typography variant="h6">
-                    {book.title}
-                  </Typography>
-                  <Typography variant="subtitle1" color="text.secondary">
-                    by {book.author}
-                  </Typography>
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                    <Typography component="legend">Rating:</Typography>
-                    <Rating value={book.rating || 0} readOnly precision={0.5} />
-                  </Box>
-                  {book.genre && (
-                    <Typography variant="body2" color="text.secondary">
-                      Genre: {book.genre}
-                    </Typography>
-                  )}
-                  {book.page_count && (
-                    <Typography variant="body2" color="text.secondary">
-                      Pages: {book.page_count}
-                    </Typography>
+                  {isEditing ? (
+                    <>
+                      <TextField
+                        label="Title"
+                        value={book.title}
+                        onChange={(e) => setBook({ ...book, title: e.target.value })}
+                        fullWidth
+                      />
+                      <TextField
+                        label="Author"
+                        value={book.author}
+                        onChange={(e) => setBook({ ...book, author: e.target.value })}
+                        fullWidth
+                      />
+                      <TextField
+                        label="Cover Image URL"
+                        value={book.coverImage}
+                        onChange={(e) => setBook({ ...book, coverImage: e.target.value })}
+                        fullWidth
+                      />
+                      <TextField
+                        label="Page Count"
+                        type="number"
+                        value={book.page_count || 0}
+                        onChange={(e) => setBook({ ...book, page_count: parseInt(e.target.value) || 0 })}
+                        fullWidth
+                        inputProps={{ min: 0 }}
+                      />
+                      <FormControl fullWidth>
+                        <InputLabel>Genre</InputLabel>
+                        <Select
+                          value={book.genre || ''}
+                          onChange={(e) => setBook({ ...book, genre: e.target.value })}
+                          label="Genre"
+                        >
+                          {genres.map((genre) => (
+                            <MenuItem key={genre} value={genre}>
+                              {genre}
+                            </MenuItem>
+                          ))}
+                        </Select>
+                      </FormControl>
+                      <Box>
+                        <Typography component="legend">Rating</Typography>
+                        <Rating
+                          value={book.rating || 0}
+                          onChange={(_, newValue) => setBook({ ...book, rating: newValue || 0 })}
+                          precision={0.5}
+                        />
+                      </Box>
+                    </>
+                  ) : (
+                    <>
+                      <Typography variant="h6">
+                        {book.title}
+                      </Typography>
+                      <Typography variant="subtitle1" color="text.secondary">
+                        by {book.author}
+                      </Typography>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <Typography component="legend">Rating:</Typography>
+                        <Rating value={book.rating || 0} readOnly precision={0.5} />
+                      </Box>
+                      {book.genre && (
+                        <Typography variant="body2" color="text.secondary">
+                          Genre: {book.genre}
+                        </Typography>
+                      )}
+                      {book.page_count && (
+                        <Typography variant="body2" color="text.secondary">
+                          Pages: {book.page_count}
+                        </Typography>
+                      )}
+                    </>
                   )}
 
                   {/* Reading Progress Section */}
@@ -259,7 +325,6 @@ const DeleteBookCard: React.FC<DeleteBookCardProps> = ({ book, onDeleteSuccess }
                           value={startDate}
                           onChange={(newValue) => {
                             setStartDate(newValue);
-                            // If removing start date, also remove finish date
                             if (!newValue) setFinishDate(null);
                           }}
                           disabled={!isEditing}

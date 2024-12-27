@@ -11,6 +11,7 @@ import {
   MenuItem,
   Divider,
   useTheme,
+  IconButton,
 } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 import { useAuth0 } from '@auth0/auth0-react';
@@ -21,6 +22,7 @@ import LogoutIcon from '@mui/icons-material/Logout';
 import LoginIcon from '@mui/icons-material/Login';
 import { styled } from '@mui/material/styles';
 import StarIcon from '@mui/icons-material/Star';
+import AccountCircle from '@mui/icons-material/AccountCircle';
 
 const StyledToolbar = styled(Toolbar)(({ theme }) => ({
   justifyContent: 'space-between',
@@ -60,8 +62,13 @@ export default function ButtonAppBar() {
   };
 
   const handleLogout = () => {
+    logout();
     handleClose();
-    logout({ logoutParams: { returnTo: window.location.origin } });
+  };
+
+  const handleSettings = () => {
+    navigate('/settings');
+    handleClose();
   };
 
   return (
@@ -125,6 +132,7 @@ export default function ButtonAppBar() {
                     </Typography>
                   </MenuItem>
                   <Divider />
+                  <MenuItem onClick={handleSettings}>Settings</MenuItem>
                   <MenuItem onClick={handleLogout}>
                     <LogoutIcon sx={{ mr: 1 }} />
                     Logout

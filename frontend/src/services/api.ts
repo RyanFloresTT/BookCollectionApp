@@ -1,10 +1,9 @@
 import axios from 'axios';
 
-// Use the backend service name when running in Docker, otherwise use localhost
-const baseURL = process.env.REACT_APP_API_URL || 'http://localhost:8080/api';
+const baseURL = process.env.REACT_APP_API_URL || 'http://localhost:8080';
 
 const api = axios.create({
-  baseURL,
+  baseURL: `${baseURL}/api`,
   headers: {
     'Content-Type': 'application/json',
   },

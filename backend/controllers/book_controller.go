@@ -48,12 +48,14 @@ func (bc *BookController) SearchBooks(w http.ResponseWriter, r *http.Request) {
 // AddBook handles POST /api/books/add
 func (bc *BookController) AddBook(w http.ResponseWriter, r *http.Request) {
 	var req struct {
-		Title      string  `json:"title"`
-		Author     string  `json:"author"`
-		CoverImage string  `json:"coverImage"`
-		Rating     float64 `json:"rating"`
-		PageCount  uint    `json:"pageCount"`
-		Genre      string  `json:"genre"`
+		Title      string     `json:"title"`
+		Author     string     `json:"author"`
+		CoverImage string     `json:"coverImage"`
+		Rating     float64    `json:"rating"`
+		PageCount  uint       `json:"pageCount"`
+		Genre      string     `json:"genre"`
+		StartedAt  *time.Time `json:"started_at"`
+		FinishedAt *time.Time `json:"finished_at"`
 	}
 
 	// Decode the request payload
@@ -119,6 +121,8 @@ func (bc *BookController) AddBook(w http.ResponseWriter, r *http.Request) {
 		PageCount:  req.PageCount,
 		UserID:     user.ID,
 		Genre:      req.Genre,
+		StartedAt:  req.StartedAt,
+		FinishedAt: req.FinishedAt,
 	}
 
 	// Save the new book to the database
@@ -211,6 +215,12 @@ func (bc *BookController) UpdateBook(w http.ResponseWriter, r *http.Request) {
 
 	// Parse request body
 	var req struct {
+		Title      string     `json:"title"`
+		Author     string     `json:"author"`
+		CoverImage string     `json:"coverImage"`
+		Rating     float64    `json:"rating"`
+		PageCount  uint       `json:"pageCount"`
+		Genre      string     `json:"genre"`
 		StartedAt  *time.Time `json:"started_at"`
 		FinishedAt *time.Time `json:"finished_at"`
 	}
@@ -221,7 +231,18 @@ func (bc *BookController) UpdateBook(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Update the book
-	err := bc.BookService.UpdateBook(r.Context(), userID, bookID, req.StartedAt, req.FinishedAt)
+	book := models.Book{
+		Title:      req.Title,
+		Author:     req.Author,
+		CoverImage: req.CoverImage,
+		Rating:     req.Rating,
+		PageCount:  req.PageCount,
+		Genre:      req.Genre,
+		StartedAt:  req.StartedAt,
+		FinishedAt: req.FinishedAt,
+	}
+
+	err := bc.BookService.UpdateBook(r.Context(), userID, bookID, book)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Failed to update book: %v", err), http.StatusInternalServerError)
 		return

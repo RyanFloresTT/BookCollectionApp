@@ -225,8 +225,8 @@ func (s *BookService) RestoreBook(ctx context.Context, bookID uint) error {
 	return nil
 }
 
-// UpdateBook updates a book's reading progress dates
-func (s *BookService) UpdateBook(ctx context.Context, userID string, bookID string, startedAt *time.Time, finishedAt *time.Time) error {
+// UpdateBook updates all book fields
+func (s *BookService) UpdateBook(ctx context.Context, userID string, bookID string, book models.Book) error {
 	var user models.User
 
 	// Check if the user exists
@@ -239,8 +239,14 @@ func (s *BookService) UpdateBook(ctx context.Context, userID string, bookID stri
 	result := s.DB.Model(&models.Book{}).
 		Where("id = ? AND user_id = ?", bookID, user.ID).
 		Updates(map[string]interface{}{
-			"started_at":  startedAt,
-			"finished_at": finishedAt,
+			"title":       book.Title,
+			"author":      book.Author,
+			"cover_image": book.CoverImage,
+			"rating":      book.Rating,
+			"page_count":  book.PageCount,
+			"genre":       book.Genre,
+			"started_at":  book.StartedAt,
+			"finished_at": book.FinishedAt,
 		})
 
 	if result.Error != nil {
