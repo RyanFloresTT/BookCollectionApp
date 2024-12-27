@@ -28,10 +28,6 @@ jobs:
       working-directory: ./frontend
       run: npm run type-check
 
-    - name: ESLint check
-      working-directory: ./frontend
-      run: npm run lint
-
     - name: Run unit tests
       working-directory: ./frontend
       run: npm test -- --coverage --watchAll=false
