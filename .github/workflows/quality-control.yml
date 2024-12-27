@@ -43,8 +43,8 @@ jobs:
       run: npm run build
 
     - name: Analyze bundle size
+      working-directory: ./frontend
       uses: preactjs/compressed-size-action@v2
       with:
         repo-token: "${{ secrets.GITHUB_TOKEN }}"
-        pattern: "frontend/build/**/*.{js,css,html,json}"
-        build-script: "cd frontend && npm run build" 
+        pattern: "build/**/*.{js,css,html,json}" 
