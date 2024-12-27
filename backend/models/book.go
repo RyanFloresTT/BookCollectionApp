@@ -1,16 +1,22 @@
 package models
 
-import "gorm.io/gorm"
+import (
+	"time"
+
+	"gorm.io/gorm"
+)
 
 type Book struct {
 	gorm.Model
-	Title      string  `json:"title" gorm:"not null"`
-	Author     string  `json:"author" gorm:"not null"`
-	CoverImage string  `json:"coverImage"`
-	Rating     float64 `json:"rating"`
-	PageCount  uint    `json:"page_count"`
-	Genre      string  `json:"genre"`
-	UserID     uint    `json:"user_id"`
+	Title      string     `json:"title" gorm:"not null"`
+	Author     string     `json:"author" gorm:"not null"`
+	CoverImage string     `json:"coverImage"`
+	Rating     float64    `json:"rating"`
+	PageCount  uint       `json:"page_count"`
+	Genre      string     `json:"genre"`
+	UserID     uint       `json:"user_id"`
+	StartedAt  *time.Time `json:"started_at"`
+	FinishedAt *time.Time `json:"finished_at"`
 }
 
 type GoogleBookResponse struct {

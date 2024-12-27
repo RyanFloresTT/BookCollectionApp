@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   Card,
   CardContent,
@@ -15,11 +15,15 @@ import {
   Paper,
   Alert,
   Grid2,
+  TextField,
 } from '@mui/material';
 import { styled } from '@mui/material/styles';
 import DeleteIcon from '@mui/icons-material/Delete';
 import EditIcon from '@mui/icons-material/Edit';
 import { useAuth0 } from '@auth0/auth0-react';
+import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
+import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
+import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import api from '../../services/api';
 import { Book } from '../../types/book';
 
@@ -79,6 +83,9 @@ const DeleteBookCard: React.FC<DeleteBookCardProps> = ({ book, onDeleteSuccess }
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [startDate, setStartDate] = useState<Date | null>(book.started_at ? new Date(book.started_at) : null);
+  const [finishDate, setFinishDate] = useState<Date | null>(book.finished_at ? new Date(book.finished_at) : null);
   const cardRef = useRef<HTMLDivElement>(null);
 
   const handleDelete = async () => {
@@ -100,9 +107,27 @@ const DeleteBookCard: React.FC<DeleteBookCardProps> = ({ book, onDeleteSuccess }
     }
   };
 
-  const handleEdit = () => {
-    // TODO: Implement edit functionality
-    console.log('Edit book:', book.ID);
+  const handleSave = async () => {
+    try {
+      const token = await getAccessTokenSilently();
+      api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+      
+      const response = await api.patch(`/books/${book.ID}`, {
+        started_at: startDate?.toISOString() || null,
+        finished_at: finishDate?.toISOString() || null,
+      });
+
+      if (response.status === 200) {
+        setSuccess('Book updated successfully');
+        setIsEditing(false);
+        // You might want to refresh the book data here
+      } else {
+        setError('Failed to update the book.');
+      }
+    } catch (err) {
+      console.error('Error updating book:', err);
+      setError('An error occurred while updating the book.');
+    }
   };
 
   const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
@@ -216,28 +241,96 @@ const DeleteBookCard: React.FC<DeleteBookCardProps> = ({ book, onDeleteSuccess }
                       Pages: {book.page_count}
                     </Typography>
                   )}
+
+                  {/* Reading Progress Section */}
+                  <Box sx={{ mt: 2 }}>
+                    <Typography variant="subtitle1" gutterBottom>
+                      Reading Progress
+                    </Typography>
+                    <Box sx={{ mb: 2 }}>
+                      <Typography variant="body2" color="text.secondary">
+                        Status: {finishDate ? "Completed" : (startDate ? "Currently Reading" : "Not Started")}
+                      </Typography>
+                    </Box>
+                    <LocalizationProvider dateAdapter={AdapterDateFns}>
+                      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                        <DatePicker
+                          label="Started Reading"
+                          value={startDate}
+                          onChange={(newValue) => {
+                            setStartDate(newValue);
+                            // If removing start date, also remove finish date
+                            if (!newValue) setFinishDate(null);
+                          }}
+                          disabled={!isEditing}
+                          slots={{ textField: TextField }}
+                          slotProps={{ 
+                            textField: { 
+                              fullWidth: true,
+                              helperText: isEditing ? "Clear this field to mark as 'Not Started'" : undefined
+                            }
+                          }}
+                        />
+                        <DatePicker
+                          label="Finished Reading"
+                          value={finishDate}
+                          onChange={(newValue) => setFinishDate(newValue)}
+                          disabled={!isEditing || !startDate}
+                          slots={{ textField: TextField }}
+                          slotProps={{ 
+                            textField: { 
+                              fullWidth: true,
+                              helperText: isEditing && startDate ? "Leave empty if still reading" : undefined
+                            }
+                          }}
+                          minDate={startDate || undefined}
+                        />
+                      </Box>
+                    </LocalizationProvider>
+                  </Box>
                 </Box>
               </Grid2>
             </Grid2>
           </DetailsPaper>
         </DialogContent>
         <DialogActions sx={{ padding: 2 }}>
-          <Button
-            startIcon={<EditIcon />}
-            onClick={handleEdit}
-            variant="outlined"
-            color="primary"
-          >
-            Edit
-          </Button>
-          <Button
-            startIcon={<DeleteIcon />}
-            onClick={handleDelete}
-            variant="contained"
-            color="error"
-          >
-            Delete
-          </Button>
+          {!isEditing ? (
+            <>
+              <Button
+                startIcon={<EditIcon />}
+                onClick={() => setIsEditing(true)}
+                variant="outlined"
+                color="primary"
+              >
+                Edit
+              </Button>
+              <Button
+                startIcon={<DeleteIcon />}
+                onClick={handleDelete}
+                variant="contained"
+                color="error"
+              >
+                Delete
+              </Button>
+            </>
+          ) : (
+            <>
+              <Button
+                onClick={() => setIsEditing(false)}
+                variant="outlined"
+                color="secondary"
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={handleSave}
+                variant="contained"
+                color="primary"
+              >
+                Save
+              </Button>
+            </>
+          )}
         </DialogActions>
       </Dialog>
 

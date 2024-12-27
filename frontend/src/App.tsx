@@ -5,6 +5,7 @@ import Home from './pages/Home/Home';
 import StatsPage from './pages/StatsPage/StatsPage';
 import ProtectedRoute from './components/ProtectedRoute/ProtectedRoute';
 import Collection from './pages/Collection/Collection';
+import SubscriptionPage from './pages/Subscription/Subscription';
 
 const App: React.FC = () => {
   return (
@@ -24,6 +25,13 @@ const App: React.FC = () => {
           element={
           <ProtectedRoute>
             <StatsPage />
+          </ProtectedRoute>
+        } />
+        <Route 
+          path="/subscription" 
+          element={
+          <ProtectedRoute>
+            <SubscriptionPage />
           </ProtectedRoute>
         } />
       </Routes>

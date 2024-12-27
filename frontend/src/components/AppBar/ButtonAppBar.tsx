@@ -20,6 +20,7 @@ import BarChartIcon from '@mui/icons-material/BarChart';
 import LogoutIcon from '@mui/icons-material/Logout';
 import LoginIcon from '@mui/icons-material/Login';
 import { styled } from '@mui/material/styles';
+import StarIcon from '@mui/icons-material/Star';
 
 const StyledToolbar = styled(Toolbar)(({ theme }) => ({
   justifyContent: 'space-between',
@@ -78,17 +79,24 @@ export default function ButtonAppBar() {
             <>
               <Button
                 color="inherit"
-                startIcon={<CollectionsBookmarkIcon />}
                 onClick={() => navigate('/collection')}
+                startIcon={<LibraryBooksIcon />}
               >
                 Collection
               </Button>
               <Button
                 color="inherit"
-                startIcon={<BarChartIcon />}
                 onClick={() => navigate('/stats')}
+                startIcon={<BarChartIcon />}
               >
                 Stats
+              </Button>
+              <Button
+                color="inherit"
+                onClick={() => navigate('/subscription')}
+                startIcon={<StarIcon />}
+              >
+                Premium
               </Button>
               <Box sx={{ ml: 2 }}>
                 <Avatar

@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"time"
 
 	"github.com/RyanFloresTT/Book-Collection-Backend/models"
 	"github.com/RyanFloresTT/Book-Collection-Backend/services"
@@ -189,5 +190,46 @@ func (bc *BookController) DeleteBook(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(map[string]string{
 		"message": "Book deleted successfully",
+	})
+}
+
+// UpdateBook handles PATCH /api/books/{id}
+func (bc *BookController) UpdateBook(w http.ResponseWriter, r *http.Request) {
+	// Extract the user ID from the context
+	userID, ok := r.Context().Value("userID").(string)
+	if !ok {
+		http.Error(w, "User not found in context", http.StatusUnauthorized)
+		return
+	}
+
+	// Parse the book ID from the URL
+	bookID := chi.URLParam(r, "id")
+	if bookID == "" {
+		http.Error(w, "Book ID is required", http.StatusBadRequest)
+		return
+	}
+
+	// Parse request body
+	var req struct {
+		StartedAt  *time.Time `json:"started_at"`
+		FinishedAt *time.Time `json:"finished_at"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid request payload", http.StatusBadRequest)
+		return
+	}
+
+	// Update the book
+	err := bc.BookService.UpdateBook(r.Context(), userID, bookID, req.StartedAt, req.FinishedAt)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Failed to update book: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(map[string]string{
+		"message": "Book updated successfully",
 	})
 }

@@ -20,7 +20,7 @@ func SetupRouter(r *chi.Mux, db *gorm.DB) {
 	// Initialize CORS
 	corsMiddleware := cors.New(cors.Options{
 		AllowedOrigins:   []string{"http://localhost:5000"},
-		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
+		AllowedMethods:   []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
 		AllowedHeaders:   []string{"Authorization", "Content-Type"},
 		AllowCredentials: true,
 	})
@@ -35,6 +35,7 @@ func SetupRouter(r *chi.Mux, db *gorm.DB) {
 		r.Get("/search", middleware.CountSearchMiddleware(http.HandlerFunc(bookController.SearchBooks)).ServeHTTP)
 		r.With(middleware.AuthMiddleware).Post("/add", bookController.AddBook)
 		r.With(middleware.AuthMiddleware).Delete("/{id}", bookController.DeleteBook)
+		r.With(middleware.AuthMiddleware).Patch("/{id}", bookController.UpdateBook)
 	})
 
 	// Health Check

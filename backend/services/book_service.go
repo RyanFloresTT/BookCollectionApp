@@ -224,3 +224,32 @@ func (s *BookService) RestoreBook(ctx context.Context, bookID uint) error {
 	}
 	return nil
 }
+
+// UpdateBook updates a book's reading progress dates
+func (s *BookService) UpdateBook(ctx context.Context, userID string, bookID string, startedAt *time.Time, finishedAt *time.Time) error {
+	var user models.User
+
+	// Check if the user exists
+	err := s.DB.Where("auth0_id = ?", userID).First(&user).Error
+	if err != nil {
+		return fmt.Errorf("failed to find user: %v", err)
+	}
+
+	// Update the book if it belongs to the user
+	result := s.DB.Model(&models.Book{}).
+		Where("id = ? AND user_id = ?", bookID, user.ID).
+		Updates(map[string]interface{}{
+			"started_at":  startedAt,
+			"finished_at": finishedAt,
+		})
+
+	if result.Error != nil {
+		return fmt.Errorf("failed to update book: %v", result.Error)
+	}
+
+	if result.RowsAffected == 0 {
+		return fmt.Errorf("book not found or not owned by user")
+	}
+
+	return nil
+}
