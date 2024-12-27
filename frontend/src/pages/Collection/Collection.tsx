@@ -22,7 +22,7 @@ import SearchIcon from '@mui/icons-material/Search';
 import FilterListIcon from '@mui/icons-material/FilterList';
 import ClearIcon from '@mui/icons-material/Clear';
 import { useAuth0 } from '@auth0/auth0-react';
-import DeleteBookCard from '../../components/BookCard/DeleteBookCard';
+import BookCard from '../../components/BookCard/BookCard';
 import { Book } from '../../types/book';
 import api from '../../services/api';
 import { genres } from '../../components/ManualBookEntry/genres';
@@ -236,7 +236,7 @@ const { getAccessTokenSilently, isAuthenticated } = useAuth0();
         <Grid2 container spacing={3}>
           {filteredBooks.map((book) => (
             <Grid2 size={{ xs: 12, sm: 6, md: 4, lg: 3 }} key={book.ID}>
-              <DeleteBookCard 
+              <BookCard 
                 book={book} 
                 onDeleteSuccess={() => {
                   setBooks(books.filter(b => b.ID !== book.ID));
