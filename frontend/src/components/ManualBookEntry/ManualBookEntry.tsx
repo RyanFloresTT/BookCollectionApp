@@ -22,7 +22,7 @@ import { useAuth0 } from '@auth0/auth0-react';
 import api from '../../services/api';
 import { genres } from './genres';
 
-const DEFAULT_COVER = 'https://via.placeholder.com/200x300?text=Book+Cover';
+const DEFAULT_COVER = 'https://placehold.co/200x300?text=No+Cover';
 
 const ManualBookEntry: React.FC = () => {
   const { isAuthenticated, getAccessTokenSilently } = useAuth0();
@@ -111,10 +111,10 @@ const ManualBookEntry: React.FC = () => {
             Welcome to BookCollectionApp!
           </Typography>
           <Divider sx={{ my: 2 }} />
-          <Typography variant="body1" paragraph>
+          <Typography variant="body1" sx={{ mb: 2 }}>
             Effortlessly manage your book collection, explore insightful statistics, and much more.
           </Typography>
-          <Typography variant="body1" paragraph>
+          <Typography variant="body1" sx={{ mb: 2 }}>
             Support us to unlock advanced features like detailed stats and weekly, monthly, or yearly summaries.
           </Typography>
           <Typography variant="body1" sx={{ fontWeight: 'bold', color: 'primary.main' }}>
@@ -128,11 +128,6 @@ const ManualBookEntry: React.FC = () => {
   return (
     <Paper elevation={3}>
       <Box p={4}>
-        <Typography variant="h5" gutterBottom color="primary" textAlign="center">
-          Add a New Book
-        </Typography>
-        <Divider sx={{ mb: 4 }} />
-        
         <Grid2 container spacing={4}>
           {/* Left side - Book Cover Preview */}
           <Grid2 size={{ xs: 12, md: 4 }}>
