@@ -7,7 +7,6 @@ services:
       - "8080:8080"
     environment:
       - DATABASE_URL=${DATABASE_URL}
-      - AUTH0_URL=${AUTH0_SERVICE_URL}
       - STRIPE_SECRET_KEY=${STRIPE_SECRET_KEY}
       - STRIPE_PREMIUM_PRICE_ID=${STRIPE_PREMIUM_PRICE_ID}
       - FRONTEND_URL=${FRONTEND_URL}
@@ -24,12 +23,18 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
+      args:
+        - REACT_APP_AUTH0_DOMAIN=${AUTH0_DOMAIN}
+        - REACT_APP_AUTH0_CLIENT_ID=${AUTH0_CLIENT_ID}
+        - REACT_APP_AUTH0_AUDIENCE=${AUTH0_AUDIENCE}
+        - REACT_APP_AUTH0_CALLBACK_URL=${AUTH0_CALLBACK_URL}
+        - REACT_APP_API_URL=${API_URL}
     ports:
       - "5000:5000"
     environment:
-      - REACT_APP_AUTH0_DOMAIN=${REACT_APP_AUTH0_DOMAIN}
-      - REACT_APP_AUTH0_CLIENT_ID=${REACT_APP_AUTH0_CLIENT_ID}
-      - REACT_APP_API_URL=${REACT_APP_API_URL}
+      - REACT_APP_AUTH0_DOMAIN=${AUTH0_DOMAIN}
+      - REACT_APP_AUTH0_CLIENT_ID=${AUTH0_CLIENT_ID}
+      - REACT_APP_API_URL=${API_URL}
     depends_on:
       - backend
     networks:

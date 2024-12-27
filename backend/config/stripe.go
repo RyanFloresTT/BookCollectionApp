@@ -25,7 +25,7 @@ var (
 	PremiumMonthlyPrice = PriceConfig{
 		PriceID:      os.Getenv("STRIPE_PREMIUM_MONTHLY_PRICE_ID"),
 		ProductID:    os.Getenv("STRIPE_PREMIUM_PRODUCT_ID"),
-		PriceAmount:  999, // $9.99
+		PriceAmount:  499, // $4.99
 		CurrencyCode: "usd",
 	}
 )
