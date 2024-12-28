@@ -135,13 +135,13 @@ func (s *BookService) fetchOpenLibraryBooks(query string) ([]models.Book, error)
 }
 
 // SearchUserBooks searches a user's personal book collection in the local database
-func (s *BookService) GetUserBooks(ctx context.Context, userID string) ([]models.Book, error) {
+func (s *BookService) GetUserBooks(ctx context.Context, auth0ID string) ([]models.Book, error) {
 	var user models.User
 
 	// Preload only books without a deleted_at value
-	err := s.DB.Preload("Books", "deleted_at IS NULL").Where("auth0_id = ?", userID).First(&user).Error
+	err := s.DB.Preload("Books", "deleted_at IS NULL").Where("auth0_id = ?", auth0ID).First(&user).Error
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to find user: %v", err)
 	}
 	return user.Books, nil
 }
@@ -154,12 +154,13 @@ func (s *BookService) AddBook(ctx context.Context, userID uint, book models.Book
 	// Insert the book into the database
 	err := s.DB.Create(&book).Error
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to create book: %v", err)
 	}
 
 	return nil
 }
 
+// GetOrCreateUser finds or creates a user by their Auth0 ID
 func (s *BookService) GetOrCreateUser(ctx context.Context, auth0ID string) (*models.User, error) {
 	var user models.User
 	err := s.DB.Where("auth0_id = ?", auth0ID).First(&user).Error
@@ -168,10 +169,10 @@ func (s *BookService) GetOrCreateUser(ctx context.Context, auth0ID string) (*mod
 		// Log that the user is being created
 		fmt.Printf("User with auth0_id %s not found, creating a new user.\n", auth0ID)
 
-		// Create a new user
+		// Create a new user with a default email
 		user = models.User{
 			Auth0ID: auth0ID,
-			Email:   user.Email,
+			Email:   fmt.Sprintf("%s@example.com", auth0ID), // Default email, should be updated later
 		}
 
 		if err := s.DB.Create(&user).Error; err != nil {

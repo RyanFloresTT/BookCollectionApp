@@ -6,11 +6,11 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/RyanFloresTT/Book-Collection-Backend/middleware"
 	"github.com/RyanFloresTT/Book-Collection-Backend/models"
 	"github.com/RyanFloresTT/Book-Collection-Backend/services"
 	"github.com/go-chi/chi/v5"
 	"gorm.io/gorm"
-	"github.com/RyanFloresTT/Book-Collection-Backend/middleware"
 )
 
 type BookController struct {
@@ -68,7 +68,7 @@ func (bc *BookController) AddBook(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Get user ID from context
-	userID, ok := r.Context().Value("userID").(string)
+	userID, ok := r.Context().Value(middleware.UserIDKey).(string)
 	if !ok {
 		http.Error(w, "User not found in context", http.StatusUnauthorized)
 		return
@@ -134,9 +134,6 @@ func (bc *BookController) AddBook(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Invalidate cache after successful add
-	middleware.InvalidateCache(userID)
-
 	// Return a success response
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
@@ -147,7 +144,7 @@ func (bc *BookController) AddBook(w http.ResponseWriter, r *http.Request) {
 
 // GetUserBooks handles GET /api/books/collection
 func (bc *BookController) GetUserBooks(w http.ResponseWriter, r *http.Request) {
-	userID, ok := r.Context().Value("userID").(string)
+	userID, ok := r.Context().Value(middleware.UserIDKey).(string)
 	if !ok {
 		http.Error(w, "User not found in context", http.StatusUnauthorized)
 		return
@@ -170,8 +167,8 @@ func (bc *BookController) GetUserBooks(w http.ResponseWriter, r *http.Request) {
 
 // DeleteBook handles DELETE /api/books/{id}
 func (bc *BookController) DeleteBook(w http.ResponseWriter, r *http.Request) {
-	// Extract the user ID (`sub`) from the context
-	userID, ok := r.Context().Value("userID").(string)
+	// Extract the user ID from the context
+	userID, ok := r.Context().Value(middleware.UserIDKey).(string)
 	if !ok {
 		http.Error(w, "User not found in context", http.StatusUnauthorized)
 		return
@@ -204,7 +201,7 @@ func (bc *BookController) DeleteBook(w http.ResponseWriter, r *http.Request) {
 // UpdateBook handles PATCH /api/books/{id}
 func (bc *BookController) UpdateBook(w http.ResponseWriter, r *http.Request) {
 	// Extract the user ID from the context
-	userID, ok := r.Context().Value("userID").(string)
+	userID, ok := r.Context().Value(middleware.UserIDKey).(string)
 	if !ok {
 		http.Error(w, "User not found in context", http.StatusUnauthorized)
 		return

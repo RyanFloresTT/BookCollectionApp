@@ -9,7 +9,7 @@ import (
 	"math/big"
 	"net/http"
 
-	"github.com/golang-jwt/jwt/v4"
+	"github.com/golang-jwt/jwt/v5"
 )
 
 type JWK struct {

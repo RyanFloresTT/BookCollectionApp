@@ -3,7 +3,6 @@ package routes
 import (
 	"net/http"
 	"os"
-	"time"
 
 	"github.com/RyanFloresTT/Book-Collection-Backend/controllers"
 	"github.com/RyanFloresTT/Book-Collection-Backend/middleware"
@@ -28,10 +27,18 @@ func SetupRouter(r *chi.Mux, db *gorm.DB) {
 	corsMiddleware := cors.New(cors.Options{
 		AllowedOrigins:   allowedOrigins,
 		AllowedMethods:   []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
-		AllowedHeaders:   []string{"Authorization", "Content-Type"},
+		AllowedHeaders:   []string{"Authorization", "Content-Type", "Accept", "X-Requested-With"},
+		ExposedHeaders:   []string{"Link"},
 		AllowCredentials: true,
+		MaxAge:           300,  // Maximum value not ignored by any of major browsers
+		Debug:            true, // Enable debugging for testing, consider disabling in production
 	})
 	r.Use(corsMiddleware.Handler)
+
+	// Enable CORS for preflight requests
+	r.Options("/*", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	})
 
 	// Controllers
 	bookController := controllers.NewBookController(db)
@@ -39,7 +46,7 @@ func SetupRouter(r *chi.Mux, db *gorm.DB) {
 
 	// Routes
 	r.Route("/api/books", func(r chi.Router) {
-		r.With(middleware.AuthMiddleware, middleware.CacheMiddleware(5*time.Minute)).Get("/collection", bookController.GetUserBooks)
+		r.With(middleware.AuthMiddleware).Get("/collection", bookController.GetUserBooks)
 		r.Get("/search", middleware.CountSearchMiddleware(http.HandlerFunc(bookController.SearchBooks)).ServeHTTP)
 		r.With(middleware.AuthMiddleware).Post("/add", bookController.AddBook)
 		r.With(middleware.AuthMiddleware).Delete("/{id}", bookController.DeleteBook)
@@ -49,7 +56,7 @@ func SetupRouter(r *chi.Mux, db *gorm.DB) {
 	// Update checkout routes to use subscription controller
 	r.Route("/api/checkout", func(r chi.Router) {
 		r.With(middleware.AuthMiddleware).Post("/session", subscriptionController.CreateCheckoutSession)
-		r.Get("/subscription-status", subscriptionController.GetSubscriptionStatus)
+		r.With(middleware.AuthMiddleware).Get("/subscription-status", subscriptionController.GetSubscriptionStatus)
 		r.Post("/webhook", subscriptionController.HandleWebhook)
 	})
 

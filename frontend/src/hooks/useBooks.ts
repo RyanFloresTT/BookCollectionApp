@@ -16,8 +16,6 @@ export const useBooks = () => {
       });
       return response.data.books;
     },
-    staleTime: 5 * 60 * 1000, // Data considered fresh for 5 minutes
-    gcTime: 30 * 60 * 1000,   // Changed from cacheTime to gcTime
   });
 
   const invalidateBooks = () => {
