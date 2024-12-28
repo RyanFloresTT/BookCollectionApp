@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useAuth0 } from '@auth0/auth0-react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { useSnackbar } from '../../hooks/useSnackbar';
-import { Container, CircularProgress, Typography } from '@mui/material';
+import { Container, CircularProgress, Typography, Box, Button } from '@mui/material';
 import Grid2 from '@mui/material/Grid2';
 import {
   Chart as ChartJS,
@@ -26,7 +26,7 @@ import { PremiumStats } from './components/PremiumStats';
 // Register Chart.js components
 ChartJS.register(CategoryScale, LinearScale, BarElement, LineElement, Title, Tooltip, Legend, PointElement, ArcElement);
  
-const StatsPage: React.FC = () => {
+const Stats: React.FC = () => {
   const { isAuthenticated, loginWithRedirect, isLoading: authLoading } = useAuth0();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
@@ -42,11 +42,37 @@ const StatsPage: React.FC = () => {
   const [pieChartData, setPieChartData] = useState<any>(null);
   
   // Premium stats states
-  const [averageReadingTime, setAverageReadingTime] = useState<number | null>(null);
+  const [averageReadingTime, setAverageReadingTime] = useState<number | undefined>(undefined);
   const [currentStreak, setCurrentStreak] = useState<number>(0);
   const [longestStreak, setLongestStreak] = useState<number>(0);
-  const [monthlyStats, setMonthlyStats] = useState<any>(null);
+  const [monthlyStats, setMonthlyStats] = useState<{ month: string; booksStarted: number; booksCompleted: number; }[]>([]);
   const [completionRate, setCompletionRate] = useState<number>(0);
+  const [readingSpeed, setReadingSpeed] = useState<number | undefined>(undefined);
+  const [totalReadingDays, setTotalReadingDays] = useState<number>(0);
+  const [readingHabits, setReadingHabits] = useState<{
+    morningReads: number;
+    afternoonReads: number;
+    eveningReads: number;
+  }>({ morningReads: 0, afternoonReads: 0, eveningReads: 0 });
+  const [genreVariety, setGenreVariety] = useState<{ genre: string; count: number }[]>([]);
+  const [longestBook, setLongestBook] = useState<{
+    title: string;
+    pages: number;
+  } | undefined>(undefined);
+  const [fastestRead, setFastestRead] = useState<{
+    title: string;
+    daysToComplete: number;
+    pagesPerDay: number;
+  } | undefined>(undefined);
+  const [bestRatedGenre, setBestRatedGenre] = useState<{
+    genre: string;
+    averageRating: number;
+  } | undefined>(undefined);
+  const [readingGoalProgress, setReadingGoalProgress] = useState<{
+    booksTarget: number;
+    booksRead: number;
+    percentComplete: number;
+  } | undefined>(undefined);
 
   const subscriptionStatus = useSubscriptionStatus();
   const isPremium = subscriptionStatus === 'premium';
@@ -87,7 +113,7 @@ const StatsPage: React.FC = () => {
 
       // Premium stats calculations (if premium)
       if (isPremium) {
-        // Calculate average reading time
+        // Calculate average reading time and speed
         const booksWithDates = books.filter(book => book.started_at && book.finished_at);
         if (booksWithDates.length > 0) {
           const readingTimes = booksWithDates.map(book => {
@@ -97,7 +123,112 @@ const StatsPage: React.FC = () => {
           });
           const avgTime = readingTimes.reduce((acc, time) => acc + time, 0) / readingTimes.length;
           setAverageReadingTime(Math.round(avgTime));
+
+          // Calculate reading speed
+          const totalPagesRead = booksWithDates.reduce((acc, book) => acc + (book.page_count || 0), 0);
+          const totalDaysReading = readingTimes.reduce((acc, days) => acc + Math.max(1, days), 0);
+          const speed = totalPagesRead / totalDaysReading;
+          setReadingSpeed(speed);
+          setTotalReadingDays(totalDaysReading);
         }
+
+        // Calculate reading habits
+        const readingHabits = {
+          morningReads: 0,
+          afternoonReads: 0,
+          eveningReads: 0
+        };
+
+        books.forEach(book => {
+          if (book.finished_at) {
+            const hour = new Date(book.finished_at).getHours();
+            if (hour >= 5 && hour < 12) readingHabits.morningReads++;
+            else if (hour >= 12 && hour < 18) readingHabits.afternoonReads++;
+            else readingHabits.eveningReads++;
+          }
+        });
+        setReadingHabits(readingHabits);
+
+        // Calculate genre variety
+        const genreCounts = books
+          .filter((book): book is typeof book & { genre: string } => Boolean(book.genre))
+          .reduce((acc, book) => {
+            if (!acc[book.genre]) {
+              acc[book.genre] = 0;
+            }
+            acc[book.genre]++;
+            return acc;
+          }, {} as { [key: string]: number });
+
+        setGenreVariety(
+          Object.entries(genreCounts).map(([genre, count]) => ({ genre, count }))
+        );
+
+        // Find longest book
+        const longestBook = books.reduce((longest, current) => 
+          (current.page_count || 0) > (longest?.page_count || 0) ? current : longest
+        );
+        setLongestBook({
+          title: longestBook.title,
+          pages: longestBook.page_count || 0
+        });
+
+        // Find fastest read
+        if (booksWithDates.length > 0) {
+          let fastestBookData = {
+            book: booksWithDates[0],
+            pagesPerDay: 0,
+            days: 0
+          };
+
+          booksWithDates.forEach(book => {
+            const days = Math.max(1, Math.ceil(
+              (new Date(book.finished_at!).getTime() - new Date(book.started_at!).getTime()) 
+              / (1000 * 60 * 60 * 24)
+            ));
+            const pagesPerDay = (book.page_count || 0) / days;
+            
+            if (pagesPerDay > fastestBookData.pagesPerDay) {
+              fastestBookData = { book, pagesPerDay, days };
+            }
+          });
+
+          setFastestRead({
+            title: fastestBookData.book.title,
+            daysToComplete: fastestBookData.days,
+            pagesPerDay: Math.round(fastestBookData.pagesPerDay)
+          });
+        }
+
+        // Find best rated genre
+        const genreRatings: { [key: string]: { total: number; count: number } } = {};
+        books.forEach(book => {
+          if (book.genre && book.rating) {
+            if (!genreRatings[book.genre]) {
+              genreRatings[book.genre] = { total: 0, count: 0 };
+            }
+            genreRatings[book.genre].total += book.rating;
+            genreRatings[book.genre].count++;
+          }
+        });
+
+        let bestGenre = { genre: '', averageRating: 0 };
+        Object.entries(genreRatings).forEach(([genre, stats]) => {
+          const average = stats.total / stats.count;
+          if (average > bestGenre.averageRating) {
+            bestGenre = { genre, averageRating: average };
+          }
+        });
+        setBestRatedGenre(bestGenre);
+
+        // Set reading goal progress (example: 52 books per year target)
+        const booksTarget = 52;
+        const booksRead = books.filter(book => book.finished_at).length;
+        setReadingGoalProgress({
+          booksTarget,
+          booksRead,
+          percentComplete: Math.round((booksRead / booksTarget) * 100)
+        });
 
         // Calculate reading streaks
         const readingDates = books
@@ -144,27 +275,31 @@ const StatsPage: React.FC = () => {
         }
 
         // Monthly stats
-        const monthlyData = Array(12).fill(0);
+        const months = [
+          'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+          'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+        ];
+        
+        const monthlyData = months.map(month => ({
+          month,
+          booksStarted: 0,
+          booksCompleted: 0
+        }));
+
         books
-          .filter(book => book.finished_at)
+          .filter(book => book.started_at || book.finished_at)
           .forEach(book => {
-            const month = new Date(book.finished_at!).getMonth();
-            monthlyData[month]++;
+            if (book.started_at) {
+              const startMonth = new Date(book.started_at).getMonth();
+              monthlyData[startMonth].booksStarted++;
+            }
+            if (book.finished_at) {
+              const finishMonth = new Date(book.finished_at).getMonth();
+              monthlyData[finishMonth].booksCompleted++;
+            }
           });
 
-        setMonthlyStats({
-          labels: [
-            'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-            'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
-          ],
-          datasets: [{
-            label: 'Books Completed',
-            data: monthlyData,
-            backgroundColor: 'rgba(75, 192, 192, 0.6)',
-            borderColor: 'rgba(75, 192, 192, 1)',
-            borderWidth: 1,
-          }],
-        });
+        setMonthlyStats(monthlyData);
 
         // Completion rate
         const startedCount = books.filter(book => book.started_at).length;
@@ -266,13 +401,32 @@ const StatsPage: React.FC = () => {
   if (booksError) {
     return (
       <Container>
-        <Grid2 container spacing={2}>
-          <Grid2 size={{ xs: 12 }}>
-            <Typography variant="h6" color="error">
-              Error loading statistics. Please try again later.
-            </Typography>
-          </Grid2>
-        </Grid2>
+        <Typography variant="h6" color="error" align="center" sx={{ py: 4 }}>
+          Error loading statistics. Please try again later.
+        </Typography>
+      </Container>
+    );
+  }
+
+  if (!books || books.length === 0) {
+    return (
+      <Container>
+        <Box sx={{ textAlign: 'center', py: 8 }}>
+          <Typography variant="h5" color="text.secondary" gutterBottom>
+            No Statistics Available Yet
+          </Typography>
+          <Typography variant="body1" color="text.secondary" sx={{ mb: 3 }}>
+            Add some books to your collection to see detailed statistics and insights!
+          </Typography>
+          <Button
+            variant="contained"
+            color="primary"
+            href="/"
+            size="large"
+          >
+            Add Your First Book
+          </Button>
+        </Box>
       </Container>
     );
   }
@@ -312,6 +466,14 @@ const StatsPage: React.FC = () => {
             longestStreak={longestStreak}
             completionRate={completionRate}
             monthlyStats={monthlyStats}
+            readingSpeed={readingSpeed}
+            totalReadingDays={totalReadingDays}
+            readingHabits={readingHabits}
+            genreVariety={genreVariety}
+            longestBook={longestBook}
+            fastestRead={fastestRead}
+            bestRatedGenre={bestRatedGenre}
+            readingGoalProgress={readingGoalProgress}
           />
         </Grid2>
       </Grid2>
@@ -319,4 +481,4 @@ const StatsPage: React.FC = () => {
   );
 };
 
-export default StatsPage;
+export default Stats;

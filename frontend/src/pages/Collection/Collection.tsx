@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   Container,
   Box,
@@ -16,7 +16,8 @@ import {
   Rating,
   Collapse,
   Button,
-  Grid2,
+  Pagination,
+  Grid,
 } from '@mui/material';
 import SearchIcon from '@mui/icons-material/Search';
 import FilterListIcon from '@mui/icons-material/FilterList';
@@ -30,49 +31,23 @@ import { genres } from '../../components/ManualBookEntry/genres';
 const Collection: React.FC = () => {
 const { getAccessTokenSilently, isAuthenticated } = useAuth0();
   const [books, setBooks] = useState<Book[]>([]);
-  const [filteredBooks, setFilteredBooks] = useState<Book[]>([]);
   const [loading, setLoading] = useState(true);
   const [showFilters, setShowFilters] = useState(false);
+  const [page, setPage] = useState(1);
+  const BOOKS_PER_PAGE = 8;
   
   // Search and Filter States
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedGenres, setSelectedGenres] = useState<string[]>([]);
   const [ratingFilter, setRatingFilter] = useState<number>(0);
+  const [maxPageCount, setMaxPageCount] = useState<number>(2000);
   const [pageCountRange, setPageCountRange] = useState<number[]>([0, 2000]);
 
-  // Fetch books from API
-  useEffect(() => {
-    const fetchBooks = async () => {
-      try {
-        const token = await getAccessTokenSilently();
-        const response = await api.get('/books/collection', {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        });
-        
-        // Ensure we have an array of books
-        const booksData = Array.isArray(response.data.books) ? response.data.books : [];
-        setBooks(booksData);
-        setFilteredBooks(booksData);
-      } catch (error) {
-        console.error('Error fetching books:', error);
-        setBooks([]);
-        setFilteredBooks([]);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchBooks();
-  }, [getAccessTokenSilently]);
-
-  // Apply filters
-  useEffect(() => {
+  // Filter books using useMemo
+  const filteredBooks = useMemo(() => {
     if (!Array.isArray(books)) {
       console.error('Books data is not an array:', books);
-      setFilteredBooks([]);
-      return;
+      return [];
     }
 
     let result = [...books];
@@ -97,13 +72,60 @@ const { getAccessTokenSilently, isAuthenticated } = useAuth0();
     }
 
     // Page count filter
-    result = result.filter(book => 
-      (book?.page_count || 0) >= pageCountRange[0] && 
-      (book?.page_count || 0) <= pageCountRange[1]
-    );
+    result = result.filter(book => {
+      const pageCount = book?.page_count;
+      // If page_count is null or undefined, keep the book
+      if (pageCount === null || pageCount === undefined) {
+        return true;
+      }
+      return pageCount >= pageCountRange[0] && pageCount <= pageCountRange[1];
+    });
 
-    setFilteredBooks(result);
+    return result;
   }, [books, searchQuery, selectedGenres, ratingFilter, pageCountRange]);
+
+  // Calculate pagination values
+  const totalPages = Math.ceil(filteredBooks.length / BOOKS_PER_PAGE);
+  const startIndex = (page - 1) * BOOKS_PER_PAGE;
+  const displayedBooks = filteredBooks.slice(startIndex, startIndex + BOOKS_PER_PAGE);
+
+  // Reset to first page when filters change
+  useEffect(() => {
+    setPage(1);
+  }, [searchQuery, selectedGenres, ratingFilter, pageCountRange]);
+
+  // Fetch books from API
+  useEffect(() => {
+    const fetchBooks = async () => {
+      try {
+        const token = await getAccessTokenSilently();
+        const response = await api.get('/books/collection', {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+        
+        // Ensure we have an array of books
+        const booksData: Book[] = Array.isArray(response.data.books) ? response.data.books : [];
+
+        // Calculate max page count
+        const maxPages = Math.max(
+          2000, // minimum default
+          ...booksData.map(book => book.page_count || 0)
+        );
+        setMaxPageCount(maxPages);
+        setPageCountRange([0, maxPages]); // Update the range to include all books
+        setBooks(booksData);
+      } catch (error) {
+        console.error('Error fetching books:', error);
+        setBooks([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchBooks();
+  }, [getAccessTokenSilently]);
 
   const handleGenreChange = (event: any) => {
     const value = event.target.value;
@@ -115,6 +137,12 @@ const { getAccessTokenSilently, isAuthenticated } = useAuth0();
     setSelectedGenres([]);
     setRatingFilter(0);
     setPageCountRange([0, 2000]);
+  };
+
+  const handlePageChange = (event: React.ChangeEvent<unknown>, value: number) => {
+    setPage(value);
+    // Scroll to top of the page when changing pages
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   return (
@@ -135,8 +163,8 @@ const { getAccessTokenSilently, isAuthenticated } = useAuth0();
 
         {/* Search and Filters */}
         <Paper sx={{ mb: 4, p: 2 }}>
-          <Grid2 container spacing={2}>
-            <Grid2 size={{ xs: 12 }}>
+          <Grid container spacing={2}>
+            <Grid item xs={12}>
               <TextField
                 fullWidth
                 value={searchQuery}
@@ -157,11 +185,11 @@ const { getAccessTokenSilently, isAuthenticated } = useAuth0();
                   ),
                 }}
               />
-            </Grid2>
+            </Grid>
 
             <Collapse in={showFilters} sx={{ width: '100%' }}>
-              <Grid2 container spacing={2} sx={{ mt: 1 }}>
-                <Grid2 size={{ xs: 12, md: 4 }}>
+              <Grid container spacing={2} sx={{ mt: 1 }}>
+                <Grid item xs={12} md={4}>
                   <FormControl fullWidth>
                     <InputLabel>Genres</InputLabel>
                     <Select
@@ -184,9 +212,9 @@ const { getAccessTokenSilently, isAuthenticated } = useAuth0();
                       ))}
                     </Select>
                   </FormControl>
-                </Grid2>
+                </Grid>
 
-                <Grid2 size={{ xs: 12, md: 4 }}>
+                <Grid item xs={12} md={4}>
                   <Box sx={{ px: 2 }}>
                     <Typography gutterBottom>Minimum Rating</Typography>
                     <Rating
@@ -195,9 +223,9 @@ const { getAccessTokenSilently, isAuthenticated } = useAuth0();
                       precision={0.5}
                     />
                   </Box>
-                </Grid2>
+                </Grid>
 
-                <Grid2 size={{ xs: 12, md: 4 }}>
+                <Grid item xs={12} md={4}>
                   <Box sx={{ px: 2 }}>
                     <Typography gutterBottom>Page Count Range</Typography>
                     <Slider
@@ -205,13 +233,13 @@ const { getAccessTokenSilently, isAuthenticated } = useAuth0();
                       onChange={(_, newValue) => setPageCountRange(newValue as number[])}
                       valueLabelDisplay="auto"
                       min={0}
-                      max={2000}
+                      max={maxPageCount}
                       step={50}
                     />
                   </Box>
-                </Grid2>
+                </Grid>
 
-                <Grid2 size={{ xs: 12 }}>
+                <Grid item xs={12}>
                   <Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>
                     <Button
                       variant="outlined"
@@ -221,36 +249,76 @@ const { getAccessTokenSilently, isAuthenticated } = useAuth0();
                       Clear Filters
                     </Button>
                   </Box>
-                </Grid2>
-              </Grid2>
+                </Grid>
+              </Grid>
             </Collapse>
-          </Grid2>
+          </Grid>
         </Paper>
 
         {/* Results count */}
         <Typography variant="subtitle1" sx={{ mb: 2 }}>
-          Showing {filteredBooks.length} of {books.length} books
+          Showing {startIndex + 1}-{Math.min(startIndex + BOOKS_PER_PAGE, filteredBooks.length)} of {filteredBooks.length} books
         </Typography>
 
         {/* Book Grid */}
-        <Grid2 container spacing={3}>
-          {filteredBooks.map((book) => (
-            <Grid2 size={{ xs: 12, sm: 6, md: 4, lg: 3 }} key={book.ID}>
+        <Grid container spacing={3} sx={{ mb: 4 }}>
+          {displayedBooks.map((book) => (
+            <Grid item xs={12} sm={6} md={4} lg={3} key={book.ID}>
               <BookCard 
                 book={book} 
                 onDeleteSuccess={() => {
                   setBooks(books.filter(b => b.ID !== book.ID));
                 }} 
               />
-            </Grid2>
+            </Grid>
           ))}
-        </Grid2>
+        </Grid>
+
+        {/* Pagination - show only if there's more than one page */}
+        {totalPages > 1 && (
+          <Box sx={{ display: 'flex', justifyContent: 'center', my: 4 }}>
+            <Pagination 
+              count={totalPages}
+              page={page}
+              onChange={handlePageChange}
+              color="primary"
+              size="large"
+              showFirstButton
+              showLastButton
+              sx={{
+                '& .MuiPaginationItem-root': {
+                  transition: 'transform 0.2s ease-in-out',
+                  '&:hover': {
+                    transform: 'scale(1.1)',
+                  },
+                },
+              }}
+            />
+          </Box>
+        )}
 
         {/* Empty state */}
         {filteredBooks.length === 0 && !loading && (
           <Box sx={{ textAlign: 'center', py: 4 }}>
-            <Typography variant="h6" color="text.secondary">
-              No books found matching your criteria
+            <Typography variant="h6" color="text.secondary" gutterBottom>
+              {books.length === 0 ? (
+                <>
+                  Your collection is empty
+                  <Typography variant="body1" color="text.secondary" sx={{ mt: 1 }}>
+                    Start by adding some books to your collection!
+                  </Typography>
+                  <Button
+                    variant="contained"
+                    color="primary"
+                    href="/add-book"
+                    sx={{ mt: 2 }}
+                  >
+                    Add Your First Book
+                  </Button>
+                </>
+              ) : (
+                'No books found matching your criteria'
+              )}
             </Typography>
           </Box>
         )}
