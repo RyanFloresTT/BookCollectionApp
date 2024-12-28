@@ -3,6 +3,7 @@ package routes
 import (
 	"net/http"
 	"os"
+	"time"
 
 	"github.com/RyanFloresTT/Book-Collection-Backend/controllers"
 	"github.com/RyanFloresTT/Book-Collection-Backend/middleware"
@@ -34,14 +35,22 @@ func SetupRouter(r *chi.Mux, db *gorm.DB) {
 
 	// Controllers
 	bookController := controllers.NewBookController(db)
+	subscriptionController := controllers.NewSubscriptionController(db)
 
 	// Routes
 	r.Route("/api/books", func(r chi.Router) {
-		r.With(middleware.AuthMiddleware).Get("/collection", bookController.GetUserBooks)
+		r.With(middleware.AuthMiddleware, middleware.CacheMiddleware(5*time.Minute)).Get("/collection", bookController.GetUserBooks)
 		r.Get("/search", middleware.CountSearchMiddleware(http.HandlerFunc(bookController.SearchBooks)).ServeHTTP)
 		r.With(middleware.AuthMiddleware).Post("/add", bookController.AddBook)
 		r.With(middleware.AuthMiddleware).Delete("/{id}", bookController.DeleteBook)
 		r.With(middleware.AuthMiddleware).Patch("/{id}", bookController.UpdateBook)
+	})
+
+	// Update checkout routes to use subscription controller
+	r.Route("/api/checkout", func(r chi.Router) {
+		r.With(middleware.AuthMiddleware).Post("/session", subscriptionController.CreateCheckoutSession)
+		r.Get("/subscription-status", subscriptionController.GetSubscriptionStatus)
+		r.Post("/webhook", subscriptionController.HandleWebhook)
 	})
 
 	// Health Check

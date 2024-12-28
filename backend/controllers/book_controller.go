@@ -10,6 +10,7 @@ import (
 	"github.com/RyanFloresTT/Book-Collection-Backend/services"
 	"github.com/go-chi/chi/v5"
 	"gorm.io/gorm"
+	"github.com/RyanFloresTT/Book-Collection-Backend/middleware"
 )
 
 type BookController struct {
@@ -132,6 +133,9 @@ func (bc *BookController) AddBook(w http.ResponseWriter, r *http.Request) {
 		fmt.Println("Error saving book:", err)
 		return
 	}
+
+	// Invalidate cache after successful add
+	middleware.InvalidateCache(userID)
 
 	// Return a success response
 	w.Header().Set("Content-Type", "application/json")

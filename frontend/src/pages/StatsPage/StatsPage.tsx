@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { useAuth0 } from '@auth0/auth0-react';
-import { Typography, Box, Paper, Container, Divider, Chip } from '@mui/material';
+import { useSearchParams, useNavigate } from 'react-router-dom';
+import { useSnackbar } from '../../hooks/useSnackbar';
+import { Typography, Box, Paper, Container, Divider, Chip, Button } from '@mui/material';
 import Grid2 from '@mui/material/Grid2';
 import {
   Chart as ChartJS,
@@ -17,15 +19,17 @@ import {
 import { Bar, Line, Pie } from 'react-chartjs-2';
 import api from '../../services/api';
 import { Book } from '../../types/book';
+import { useSubscriptionStatus } from '../../hooks/useSubscriptionStatus';
+import { useBooks } from '../../hooks/useBooks';
 
 // Register Chart.js components
 ChartJS.register(CategoryScale, LinearScale, BarElement, LineElement, Title, Tooltip, Legend, PointElement, ArcElement);
 
-// For testing premium features without subscription
-const MOCK_PREMIUM = true;
-
 const StatsPage: React.FC = () => {
-  const { getAccessTokenSilently } = useAuth0();
+  const { isAuthenticated, loginWithRedirect, getAccessTokenSilently, isLoading: authLoading } = useAuth0();
+  const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
+  const { showSnackbar } = useSnackbar();
   const [averageRating, setAverageRating] = useState<number | null>(null);
   const [highestPageCount, setHighestPageCount] = useState<number | null>(null);
   const [lowestPageCount, setLowestPageCount] = useState<number | null>(null);
@@ -42,6 +46,32 @@ const StatsPage: React.FC = () => {
   const [longestStreak, setLongestStreak] = useState<number>(0);
   const [monthlyStats, setMonthlyStats] = useState<any>(null);
   const [completionRate, setCompletionRate] = useState<number>(0);
+
+  const subscriptionStatus = useSubscriptionStatus();
+  
+  // Replace MOCK_PREMIUM with actual status check
+  const isPremium = subscriptionStatus === 'premium';
+
+  const { books, isLoading } = useBooks();
+
+  useEffect(() => {
+    // Don't redirect if auth is still loading
+    if (authLoading) return;
+    
+    if (!isAuthenticated) {
+      loginWithRedirect({
+        appState: { returnTo: window.location.pathname + window.location.search }
+      });
+      return;
+    }
+
+    const status = searchParams.get('payment_status');
+    if (status === 'success') {
+      showSnackbar('Welcome to Premium! Enjoy your enhanced statistics.', 'success');
+      // Only clear the URL params, not navigate to a new page
+      navigate('?', { replace: true });
+    }
+  }, [isAuthenticated, authLoading, searchParams, navigate, showSnackbar, loginWithRedirect]);
 
   useEffect(() => {
     const fetchStats = async () => {
@@ -66,7 +96,7 @@ const StatsPage: React.FC = () => {
         setTotalPages(pageCounts.reduce((acc, count) => acc + count, 0));
 
         // Premium stats calculations (if premium or mock premium)
-        if (MOCK_PREMIUM) {
+        if (isPremium) {
           // Calculate average reading time
           const booksWithDates = books.filter(book => book.started_at && book.finished_at);
           if (booksWithDates.length > 0) {
@@ -243,7 +273,7 @@ const StatsPage: React.FC = () => {
       <Box sx={{ mt: 4, mb: 6 }}>
         <Typography variant="h4" gutterBottom sx={{ mb: 4, fontWeight: 'bold', color: 'primary.main' }}>
           Library Statistics
-          {MOCK_PREMIUM && (
+          {isPremium && (
             <Chip
               label="Premium"
               color="secondary"
@@ -293,7 +323,7 @@ const StatsPage: React.FC = () => {
           </Grid2>
 
           {/* Premium Stats */}
-          {MOCK_PREMIUM && (
+          {isPremium ? (
             <>
               <Grid2 size={12}>
                 <Typography variant="h5" gutterBottom sx={{ mt: 4, mb: 2 }}>
@@ -351,6 +381,24 @@ const StatsPage: React.FC = () => {
                 </Paper>
               </Grid2>
             </>
+          ) : (
+            <Grid2 size={12}>
+              <Paper elevation={3} sx={{ p: 3, textAlign: 'center' }}>
+                <Typography variant="h6" gutterBottom>
+                  Upgrade to Premium
+                </Typography>
+                <Typography variant="body1" paragraph>
+                  Get access to advanced statistics and reading insights
+                </Typography>
+                <Button
+                  variant="contained"
+                  color="primary"
+                  onClick={() => navigate('/subscription')}
+                >
+                  Upgrade Now
+                </Button>
+              </Paper>
+            </Grid2>
           )}
 
           {/* Charts */}
