@@ -1,11 +1,8 @@
-FROM node:18-alpine
-
+# Build stage
+FROM node:18 AS builder
 WORKDIR /app
-
 COPY package*.json ./
-
 RUN npm install
-
 COPY . .
 
 # Create env file from build args
@@ -14,17 +11,17 @@ ARG REACT_APP_AUTH0_CLIENT_ID
 ARG REACT_APP_AUTH0_AUDIENCE
 ARG REACT_APP_AUTH0_CALLBACK_URL
 ARG REACT_APP_API_URL
+ARG REACT_APP_STRIPE_PUBLIC_KEY
 
 ENV REACT_APP_AUTH0_DOMAIN=$REACT_APP_AUTH0_DOMAIN
 ENV REACT_APP_AUTH0_CLIENT_ID=$REACT_APP_AUTH0_CLIENT_ID
 ENV REACT_APP_AUTH0_AUDIENCE=$REACT_APP_AUTH0_AUDIENCE
 ENV REACT_APP_AUTH0_CALLBACK_URL=$REACT_APP_AUTH0_CALLBACK_URL
 ENV REACT_APP_API_URL=$REACT_APP_API_URL
-
+ENV REACT_APP_STRIPE_PUBLIC_KEY=$STRIPE_PUBLIC_KEY
 RUN npm run build
 
-RUN npm install -g serve
-
-EXPOSE 5000
-
-CMD ["serve", "-s", "build", "-l", "5000"]
+# Production stage
+FROM nginx:alpine
+COPY --from=builder /app/build /usr/share/nginx/html
+COPY nginx.conf /etc/nginx/conf.d/default.conf

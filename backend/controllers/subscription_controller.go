@@ -60,8 +60,8 @@ func (sc *SubscriptionController) CreateCheckoutSession(w http.ResponseWriter, r
 				Quantity: stripe.Int64(1),
 			},
 		},
-		SuccessURL: stripe.String(os.Getenv("FRONTEND_URL") + "/settings?subscription=success"),
-		CancelURL:  stripe.String(os.Getenv("FRONTEND_URL") + "/settings?subscription=canceled"),
+		SuccessURL: stripe.String(os.Getenv("FRONTEND_URL") + "/stats?payment_status=success"),
+		CancelURL:  stripe.String(os.Getenv("FRONTEND_URL") + "/subscription?payment_status=cancelled"),
 	}
 
 	s, err := session.New(params)

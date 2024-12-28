@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Box,
   Button,
@@ -13,10 +13,14 @@ import {
   ListItemIcon,
   ListItemText,
   useTheme,
+  CircularProgress,
 } from '@mui/material';
 import CheckIcon from '@mui/icons-material/Check';
 import CloseIcon from '@mui/icons-material/Close';
 import { useAuth0 } from '@auth0/auth0-react';
+import { stripeService } from '../../services/stripeService';
+import { useSnackbar } from '../../hooks/useSnackbar';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 
 const tiers = [
   {
@@ -55,23 +59,49 @@ const tiers = [
 
 const SubscriptionPage: React.FC = () => {
   const theme = useTheme();
-  const { user, isAuthenticated, loginWithRedirect, getAccessTokenSilently } = useAuth0();
+  const { isAuthenticated, loginWithRedirect, user, getAccessTokenSilently } = useAuth0();
+  const { showSnackbar } = useSnackbar();
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+
+  useEffect(() => {
+    const status = searchParams.get('payment_status');
+    
+    if (status === 'cancelled') {
+      showSnackbar('Payment cancelled. You can try again when ready.', 'info');
+      navigate('?', { replace: true });
+    }
+  }, [searchParams, showSnackbar, navigate]);
 
   const handleSubscribe = async (tier: string) => {
-    if (tier === 'Free') {
-      return;
-    }
+    if (tier === 'Free') return;
 
-    if (!isAuthenticated) {
-      // Redirect to login if not authenticated
+    if (!isAuthenticated || !user) {
       loginWithRedirect({
         appState: { returnTo: '/subscription' }
       });
       return;
     }
 
-    // Redirect to Stripe checkout
-    window.location.href = 'https://buy.stripe.com/test_aEUeYQ5V514s9sk3cd';
+    setIsLoading(true);
+    setError(null);
+    
+    try {
+      const token = await getAccessTokenSilently();
+      const { url } = await stripeService.createCheckoutSession(
+        user.sub as string,
+        user.email as string,
+        token
+      );
+      window.location.href = url;
+    } catch (err) {
+      console.error('Error creating checkout session:', err);
+      showSnackbar('Failed to initiate checkout. Please try again.', 'error');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -142,15 +172,26 @@ const SubscriptionPage: React.FC = () => {
                   variant={tier.buttonVariant as 'outlined' | 'contained'}
                   color="primary"
                   onClick={() => handleSubscribe(tier.title)}
+                  disabled={tier.title === 'Premium' && isLoading}
                   sx={{ mt: 2 }}
                 >
-                  {tier.buttonText}
+                  {tier.title === 'Premium' && isLoading ? (
+                    <CircularProgress size={24} color="inherit" />
+                  ) : (
+                    tier.buttonText
+                  )}
                 </Button>
               </CardContent>
             </Card>
           </Grid>
         ))}
       </Grid>
+
+      {error && (
+        <Typography color="error" sx={{ mt: 2, textAlign: 'center' }}>
+          {error}
+        </Typography>
+      )}
     </Container>
   );
 };
