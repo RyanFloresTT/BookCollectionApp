@@ -11,10 +11,16 @@ import { useNavigate } from 'react-router-dom';
 
 interface ThemeSettingsProps {
   isPremium: boolean;
+  onClose: () => void;
 }
 
-export const ThemeSettings: React.FC<ThemeSettingsProps> = ({ isPremium }) => {
+export const ThemeSettings: React.FC<ThemeSettingsProps> = ({ isPremium, onClose }) => {
   const navigate = useNavigate();
+
+  const handleUpgradeClick = () => {
+    onClose();
+    navigate('/subscription');
+  };
 
   if (!isPremium) {
     return (
@@ -29,7 +35,7 @@ export const ThemeSettings: React.FC<ThemeSettingsProps> = ({ isPremium }) => {
         <Button
           variant="contained"
           color="primary"
-          onClick={() => navigate('/subscription')}
+          onClick={handleUpgradeClick}
         >
           Upgrade to Premium
         </Button>

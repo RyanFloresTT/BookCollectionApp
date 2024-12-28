@@ -10,10 +10,16 @@ import { useNavigate } from 'react-router-dom';
 
 interface SubscriptionSettingsProps {
   status: string;
+  onClose: () => void;
 }
 
-export const SubscriptionSettings: React.FC<SubscriptionSettingsProps> = ({ status }) => {
+export const SubscriptionSettings: React.FC<SubscriptionSettingsProps> = ({ status, onClose }) => {
   const navigate = useNavigate();
+
+  const handleUpgradeClick = () => {
+    onClose();
+    navigate('/subscription');
+  };
 
   return (
     <Box>
@@ -51,7 +57,7 @@ export const SubscriptionSettings: React.FC<SubscriptionSettingsProps> = ({ stat
             <Button
               variant="contained"
               color="primary"
-              onClick={() => navigate('/subscription')}
+              onClick={handleUpgradeClick}
             >
               Upgrade Now
             </Button>

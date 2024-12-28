@@ -2,7 +2,8 @@ package middleware
 
 import (
     "context"
-    "encoding/json"
+    "net/http"
+    "net/http/httptest"
     "time"
     "github.com/go-redis/redis/v8"
 )

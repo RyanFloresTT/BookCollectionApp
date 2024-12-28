@@ -78,10 +78,10 @@ export const SettingsDialog: React.FC<SettingsDialogProps> = ({ open, onClose })
           </Tabs>
         </Box>
         <TabPanel value={activeTab} index={0}>
-          <ThemeSettings isPremium={isPremium} />
+          <ThemeSettings isPremium={isPremium} onClose={onClose} />
         </TabPanel>
         <TabPanel value={activeTab} index={1}>
-          <SubscriptionSettings status={subscriptionStatus} />
+          <SubscriptionSettings status={subscriptionStatus} onClose={onClose} />
         </TabPanel>
       </DialogContent>
     </Dialog>

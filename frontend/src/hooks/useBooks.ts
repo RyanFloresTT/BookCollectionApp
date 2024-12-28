@@ -17,11 +17,11 @@ export const useBooks = () => {
       return response.data.books;
     },
     staleTime: 5 * 60 * 1000, // Data considered fresh for 5 minutes
-    cacheTime: 30 * 60 * 1000, // Cache persists for 30 minutes
+    gcTime: 30 * 60 * 1000,   // Changed from cacheTime to gcTime
   });
 
   const invalidateBooks = () => {
-    queryClient.invalidateQueries(['books']);
+    queryClient.invalidateQueries({ queryKey: ['books'] });
   };
 
   return { books, isLoading, error, invalidateBooks };
