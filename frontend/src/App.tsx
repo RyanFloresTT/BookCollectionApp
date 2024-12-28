@@ -30,11 +30,9 @@ const AuthSetup: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { getAccessTokenSilently, isAuthenticated } = useAuth0();
 
   useEffect(() => {
-    console.log('AuthSetup - Setting up token getter, isAuthenticated:', isAuthenticated);
     setAuthToken(async () => {
       try {
         const token = await getAccessTokenSilently();
-        console.log('AuthSetup - Successfully got token');
         return token;
       } catch (error) {
         console.error('AuthSetup - Error getting token:', error);
