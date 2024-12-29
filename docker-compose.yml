@@ -23,6 +23,7 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
+    image: trustytea/bookcollectionapp-backend:latest
     ports:
       - "8080:8080"
     environment:
@@ -55,8 +56,9 @@ services:
         - REACT_APP_AUTH0_CALLBACK_URL=${AUTH0_CALLBACK_URL}
         - REACT_APP_API_URL=${API_URL}
         - REACT_APP_STRIPE_PUBLIC_KEY=${STRIPE_PUBLIC_KEY}
+    image: trustytea/bookcollectionapp-frontend:latest
     ports:
-      - "5000:5000"
+      - "5000:80"
     environment:
       - REACT_APP_AUTH0_DOMAIN=${AUTH0_DOMAIN}
       - REACT_APP_AUTH0_CLIENT_ID=${AUTH0_CLIENT_ID}
@@ -68,7 +70,7 @@ services:
     networks:
       - app-network
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:5000"]
+      test: ["CMD", "curl", "-f", "http://localhost:80"]
       interval: 30s
       timeout: 10s
       retries: 3
