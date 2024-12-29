@@ -4,7 +4,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"time"
 
+	"github.com/RyanFloresTT/Book-Collection-Backend/middleware"
 	"github.com/RyanFloresTT/Book-Collection-Backend/models"
 	"github.com/RyanFloresTT/Book-Collection-Backend/services"
 	"github.com/go-chi/chi/v5"
@@ -47,12 +49,14 @@ func (bc *BookController) SearchBooks(w http.ResponseWriter, r *http.Request) {
 // AddBook handles POST /api/books/add
 func (bc *BookController) AddBook(w http.ResponseWriter, r *http.Request) {
 	var req struct {
-		Title      string  `json:"title"`
-		Author     string  `json:"author"`
-		CoverImage string  `json:"coverImage"`
-		Rating     float64 `json:"rating"`
-		PageCount  uint    `json:"pageCount"`
-		Genre      string  `json:"genre"`
+		Title      string     `json:"title"`
+		Author     string     `json:"author"`
+		CoverImage string     `json:"coverImage"`
+		Rating     float64    `json:"rating"`
+		PageCount  uint       `json:"pageCount"`
+		Genre      string     `json:"genre"`
+		StartedAt  *time.Time `json:"started_at"`
+		FinishedAt *time.Time `json:"finished_at"`
 	}
 
 	// Decode the request payload
@@ -64,7 +68,7 @@ func (bc *BookController) AddBook(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Get user ID from context
-	userID, ok := r.Context().Value("userID").(string)
+	userID, ok := r.Context().Value(middleware.UserIDKey).(string)
 	if !ok {
 		http.Error(w, "User not found in context", http.StatusUnauthorized)
 		return
@@ -118,6 +122,8 @@ func (bc *BookController) AddBook(w http.ResponseWriter, r *http.Request) {
 		PageCount:  req.PageCount,
 		UserID:     user.ID,
 		Genre:      req.Genre,
+		StartedAt:  req.StartedAt,
+		FinishedAt: req.FinishedAt,
 	}
 
 	// Save the new book to the database
@@ -138,7 +144,7 @@ func (bc *BookController) AddBook(w http.ResponseWriter, r *http.Request) {
 
 // GetUserBooks handles GET /api/books/collection
 func (bc *BookController) GetUserBooks(w http.ResponseWriter, r *http.Request) {
-	userID, ok := r.Context().Value("userID").(string)
+	userID, ok := r.Context().Value(middleware.UserIDKey).(string)
 	if !ok {
 		http.Error(w, "User not found in context", http.StatusUnauthorized)
 		return
@@ -161,8 +167,8 @@ func (bc *BookController) GetUserBooks(w http.ResponseWriter, r *http.Request) {
 
 // DeleteBook handles DELETE /api/books/{id}
 func (bc *BookController) DeleteBook(w http.ResponseWriter, r *http.Request) {
-	// Extract the user ID (`sub`) from the context
-	userID, ok := r.Context().Value("userID").(string)
+	// Extract the user ID from the context
+	userID, ok := r.Context().Value(middleware.UserIDKey).(string)
 	if !ok {
 		http.Error(w, "User not found in context", http.StatusUnauthorized)
 		return
@@ -189,5 +195,63 @@ func (bc *BookController) DeleteBook(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(map[string]string{
 		"message": "Book deleted successfully",
+	})
+}
+
+// UpdateBook handles PATCH /api/books/{id}
+func (bc *BookController) UpdateBook(w http.ResponseWriter, r *http.Request) {
+	// Extract the user ID from the context
+	userID, ok := r.Context().Value(middleware.UserIDKey).(string)
+	if !ok {
+		http.Error(w, "User not found in context", http.StatusUnauthorized)
+		return
+	}
+
+	// Parse the book ID from the URL
+	bookID := chi.URLParam(r, "id")
+	if bookID == "" {
+		http.Error(w, "Book ID is required", http.StatusBadRequest)
+		return
+	}
+
+	// Parse request body
+	var req struct {
+		Title      string     `json:"title"`
+		Author     string     `json:"author"`
+		CoverImage string     `json:"coverImage"`
+		Rating     float64    `json:"rating"`
+		PageCount  uint       `json:"pageCount"`
+		Genre      string     `json:"genre"`
+		StartedAt  *time.Time `json:"started_at"`
+		FinishedAt *time.Time `json:"finished_at"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid request payload", http.StatusBadRequest)
+		return
+	}
+
+	// Update the book
+	book := models.Book{
+		Title:      req.Title,
+		Author:     req.Author,
+		CoverImage: req.CoverImage,
+		Rating:     req.Rating,
+		PageCount:  req.PageCount,
+		Genre:      req.Genre,
+		StartedAt:  req.StartedAt,
+		FinishedAt: req.FinishedAt,
+	}
+
+	err := bc.BookService.UpdateBook(r.Context(), userID, bookID, book)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Failed to update book: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(map[string]string{
+		"message": "Book updated successfully",
 	})
 }

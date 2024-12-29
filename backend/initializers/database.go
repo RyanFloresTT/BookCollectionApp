@@ -31,6 +31,11 @@ func InitializeDatabase() *gorm.DB {
 		log.Fatalf("Failed to auto-migrate user model: %v", err)
 	}
 
+	err = db.AutoMigrate(&models.Subscription{})
+	if err != nil {
+		log.Fatalf("Failed to auto-migrate subscription model: %v", err)
+	}
+
 	log.Println("Database connected and models migrated")
 	return db
 }

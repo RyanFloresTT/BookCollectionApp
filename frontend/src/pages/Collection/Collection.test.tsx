@@ -176,15 +176,15 @@ describe('Collection Component', () => {
       expect(screen.getByText('Harry Potter')).toBeInTheDocument();
     });
 
-    // Check initial count
-    expect(screen.getByText('Showing 2 of 2 books')).toBeInTheDocument();
+    // Check initial count - showing both books
+    expect(screen.getByText('Showing 1-2 of 2 books')).toBeInTheDocument();
 
     // Apply search filter
     const searchInput = screen.getByPlaceholderText('Search by title or author...');
     fireEvent.change(searchInput, { target: { value: 'Harry' } });
 
-    // Check updated count
-    expect(screen.getByText('Showing 1 of 2 books')).toBeInTheDocument();
+    // Check updated count - showing only Harry Potter (total count is also filtered)
+    expect(screen.getByText('Showing 1-1 of 1 books')).toBeInTheDocument();
   });
 
   test('filters books by page count range', async () => {

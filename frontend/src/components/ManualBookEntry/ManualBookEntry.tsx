@@ -21,6 +21,8 @@ import Grid2 from '@mui/material/Grid2';
 import { useAuth0 } from '@auth0/auth0-react';
 import api from '../../services/api';
 import { genres } from './genres';
+import { LocalizationProvider, DatePicker } from '@mui/x-date-pickers';
+import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 
 const DEFAULT_COVER = 'https://placehold.co/200x300?text=No+Cover';
 
@@ -37,6 +39,9 @@ const ManualBookEntry: React.FC = () => {
   const [success, setSuccess] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [imageError, setImageError] = useState(false);
+  const [readingStatus, setReadingStatus] = useState('not_started');
+  const [startDate, setStartDate] = useState<Date | null>(null);
+  const [finishDate, setFinishDate] = useState<Date | null>(null);
 
   const handleInputChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = event.target;
@@ -68,22 +73,19 @@ const ManualBookEntry: React.FC = () => {
   };
 
   const handleSubmit = async () => {
-    if (!bookDetails.title || !bookDetails.author) {
-      setError('Title and author are required.');
-      return;
-    }
-
     try {
-      const accessToken = await getAccessTokenSilently({
-        authorizationParams: {
-          audience: "bookcollection.api",
-        },
-      });
+      const token = await getAccessTokenSilently();
+      api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
 
-      const response = await api.post('/books/add', bookDetails, {
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-        },
+      const response = await api.post('/books/add', {
+        title: bookDetails.title,
+        author: bookDetails.author,
+        coverImage: bookDetails.coverImage || DEFAULT_COVER,
+        rating: bookDetails.rating,
+        pageCount: bookDetails.pageCount,
+        genre: bookDetails.genre,
+        started_at: startDate?.toISOString() || null,
+        finished_at: finishDate?.toISOString() || null,
       });
 
       if (response.status === 201) {
@@ -96,10 +98,13 @@ const ManualBookEntry: React.FC = () => {
           pageCount: 0,
           genre: '',
         });
-        setImageError(false);
+        setStartDate(null);
+        setFinishDate(null);
+        setReadingStatus('not_started');
       }
-    } catch (error: any) {
-      setError(error.response?.data?.message || 'Failed to add book to your collection.');
+    } catch (err) {
+      console.error('Error adding book:', err);
+      setError('Failed to add book to collection');
     }
   };
 
@@ -219,25 +224,83 @@ const ManualBookEntry: React.FC = () => {
                   size="large"
                 />
               </Box>
+              <FormControl fullWidth sx={{ mb: 2 }}>
+                <InputLabel>Reading Status</InputLabel>
+                <Select
+                  value={readingStatus}
+                  onChange={(e) => {
+                    const status = e.target.value;
+                    setReadingStatus(status);
+                    if (status === 'not_started') {
+                      setStartDate(null);
+                      setFinishDate(null);
+                    } else if (status === 'in_progress') {
+                      setStartDate(startDate || new Date());
+                      setFinishDate(null);
+                    }
+                  }}
+                  label="Reading Status"
+                >
+                  <MenuItem value="not_started">Not Started</MenuItem>
+                  <MenuItem value="in_progress">Currently Reading</MenuItem>
+                  <MenuItem value="completed">Completed</MenuItem>
+                </Select>
+              </FormControl>
+              <LocalizationProvider dateAdapter={AdapterDateFns}>
+                {(readingStatus === 'in_progress' || readingStatus === 'completed') && (
+                  <DatePicker
+                    label="Started Reading"
+                    value={startDate}
+                    onChange={(newValue) => setStartDate(newValue)}
+                    sx={{ mb: 2, width: '100%' }}
+                    slots={{ textField: TextField }}
+                    slotProps={{
+                      textField: { fullWidth: true }
+                    }}
+                  />
+                )}
+                
+                {readingStatus === 'completed' && (
+                  <DatePicker
+                    label="Finished Reading"
+                    value={finishDate}
+                    onChange={(newValue) => setFinishDate(newValue)}
+                    minDate={startDate || undefined}
+                    sx={{ mb: 2, width: '100%' }}
+                    slots={{ textField: TextField }}
+                    slotProps={{
+                      textField: { fullWidth: true }
+                    }}
+                  />
+                )}
+              </LocalizationProvider>
+              <Box sx={{ mt: 2, display: 'flex', gap: 2 }}>
+                <Button
+                  variant="contained"
+                  color="primary"
+                  onClick={handleSubmit}
+                  disabled={!bookDetails.title || !bookDetails.author}
+                >
+                  Add Book
+                </Button>
+                <Button
+                  variant="outlined"
+                  color="secondary"
+                  onClick={() => setBookDetails({
+                    title: '',
+                    author: '',
+                    coverImage: '',
+                    rating: 0,
+                    pageCount: 0,
+                    genre: '',
+                  })}
+                >
+                  Cancel
+                </Button>
+              </Box>
             </Box>
           </Grid2>
         </Grid2>
-
-        <Box display="flex" justifyContent="center" mt={4}>
-          <Button
-            variant="contained"
-            color="primary"
-            onClick={handleSubmit}
-            size="large"
-            sx={{ 
-              width: { xs: '100%', sm: '60%' },
-              py: 1.5,
-              fontSize: '1.1rem'
-            }}
-          >
-            Add to Collection
-          </Button>
-        </Box>
 
         <Snackbar 
           open={!!success} 
