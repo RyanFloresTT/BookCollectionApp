@@ -1,12 +1,16 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   Box,
   Typography,
   Button,
   Paper,
   Chip,
+  CircularProgress,
 } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
+import { useAuth0 } from '@auth0/auth0-react';
+import { stripeService } from '../../services/stripeService';
+import { useSnackbar } from '../../hooks/useSnackbar';
 
 interface SubscriptionSettingsProps {
   status: string;
@@ -15,10 +19,27 @@ interface SubscriptionSettingsProps {
 
 export const SubscriptionSettings: React.FC<SubscriptionSettingsProps> = ({ status, onClose }) => {
   const navigate = useNavigate();
+  const { getAccessTokenSilently } = useAuth0();
+  const { showSnackbar } = useSnackbar();
+  const [isLoading, setIsLoading] = useState(false);
 
   const handleUpgradeClick = () => {
     onClose();
     navigate('/subscription');
+  };
+
+  const handleManageSubscription = async () => {
+    setIsLoading(true);
+    try {
+      const token = await getAccessTokenSilently();
+      const { url } = await stripeService.createCustomerPortalSession(token);
+      window.location.href = url;
+    } catch (error) {
+      console.error('Error creating portal session:', error);
+      showSnackbar('Failed to open subscription management. Please try again.', 'error');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -44,9 +65,11 @@ export const SubscriptionSettings: React.FC<SubscriptionSettingsProps> = ({ stat
             <Button
               variant="outlined"
               color="primary"
-              // Add manage subscription logic
+              onClick={handleManageSubscription}
+              disabled={isLoading}
+              startIcon={isLoading ? <CircularProgress size={20} /> : null}
             >
-              Manage Subscription
+              {isLoading ? 'Loading...' : 'Manage Subscription'}
             </Button>
           </>
         ) : (

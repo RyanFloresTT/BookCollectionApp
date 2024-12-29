@@ -11,7 +11,8 @@ import (
 	"github.com/RyanFloresTT/Book-Collection-Backend/middleware"
 	"github.com/RyanFloresTT/Book-Collection-Backend/models"
 	"github.com/stripe/stripe-go/v75"
-	"github.com/stripe/stripe-go/v75/checkout/session"
+	portalsession "github.com/stripe/stripe-go/v75/billingportal/session"
+	checkoutsession "github.com/stripe/stripe-go/v75/checkout/session"
 	"github.com/stripe/stripe-go/v75/customer"
 	"github.com/stripe/stripe-go/v75/webhook"
 	"gorm.io/gorm"
@@ -67,7 +68,7 @@ func (sc *SubscriptionController) CreateCheckoutSession(w http.ResponseWriter, r
 		CancelURL:  stripe.String(os.Getenv("FRONTEND_URL") + "/subscription?payment_status=cancelled"),
 	}
 
-	s, err := session.New(params)
+	s, err := checkoutsession.New(params)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Error creating checkout session: %v", err), http.StatusInternalServerError)
 		return
@@ -143,6 +144,13 @@ func (sc *SubscriptionController) HandleWebhook(w http.ResponseWriter, r *http.R
 		if err := sc.DB.Where("auth0_id = ?", auth0ID).First(&user).Error; err != nil {
 			fmt.Printf("Webhook - Error finding user: %v\n", err)
 			http.Error(w, "User not found", http.StatusNotFound)
+			return
+		}
+
+		// Save the Stripe Customer ID to the user
+		if err := sc.DB.Model(&user).Update("stripe_customer_id", subscription.Customer.ID).Error; err != nil {
+			fmt.Printf("Webhook - Error updating user's Stripe Customer ID: %v\n", err)
+			http.Error(w, "Error updating user", http.StatusInternalServerError)
 			return
 		}
 
@@ -291,5 +299,74 @@ func (sc *SubscriptionController) GetSubscriptionStatus(w http.ResponseWriter, r
 	json.NewEncoder(w).Encode(map[string]interface{}{
 		"status":       "free",
 		"subscription": subscription,
+	})
+}
+
+// CreatePortalSession creates a Stripe Customer Portal session
+func (sc *SubscriptionController) CreatePortalSession(w http.ResponseWriter, r *http.Request) {
+	// Get user ID from context
+	userID, ok := r.Context().Value(middleware.UserIDKey).(string)
+	if !ok {
+		http.Error(w, "User not found in context", http.StatusUnauthorized)
+		return
+	}
+
+	// Get customer ID for the user
+	var user models.User
+	if err := sc.DB.Where("auth0_id = ?", userID).First(&user).Error; err != nil {
+		http.Error(w, "User not found", http.StatusNotFound)
+		return
+	}
+
+	fmt.Printf("Found user: ID=%d, Auth0ID=%s, StripeCustomerID=%s\n", user.ID, user.Auth0ID, user.StripeCustomerID)
+
+	// If no StripeCustomerID in user table, check subscription table
+	var customerID string
+	if user.StripeCustomerID == "" {
+		var subscription models.Subscription
+		if err := sc.DB.Where("user_id = ?", user.ID).First(&subscription).Error; err != nil {
+			fmt.Printf("Error finding subscription: %v\n", err)
+			http.Error(w, "No subscription found for user", http.StatusBadRequest)
+			return
+		}
+		customerID = subscription.StripeCustomerID
+
+		// Update the user's StripeCustomerID while we're here
+		if err := sc.DB.Model(&user).Update("stripe_customer_id", customerID).Error; err != nil {
+			fmt.Printf("Error updating user's StripeCustomerID: %v\n", err)
+			// Don't return error, just log it
+		}
+	} else {
+		customerID = user.StripeCustomerID
+	}
+
+	fmt.Printf("Using StripeCustomerID: %s\n", customerID)
+
+	if customerID == "" {
+		http.Error(w, "No subscription found for user", http.StatusBadRequest)
+		return
+	}
+
+	// Create return URL
+	returnURL := os.Getenv("FRONTEND_URL")
+	if returnURL == "" {
+		returnURL = "http://localhost:5000"
+	}
+
+	// Create the portal session
+	params := &stripe.BillingPortalSessionParams{
+		Customer:  stripe.String(customerID),
+		ReturnURL: stripe.String(returnURL),
+	}
+	session, err := portalsession.New(params)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Error creating portal session: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	// Return the portal URL
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]string{
+		"url": session.URL,
 	})
 }

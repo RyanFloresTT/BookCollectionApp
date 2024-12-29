@@ -6,7 +6,6 @@ import {
   CardContent,
   CardHeader,
   Container,
-  Grid,
   Typography,
   List,
   ListItem,
@@ -15,14 +14,16 @@ import {
   useTheme,
   CircularProgress,
 } from '@mui/material';
+import Grid2 from '@mui/material/Grid2';
 import CheckIcon from '@mui/icons-material/Check';
 import CloseIcon from '@mui/icons-material/Close';
 import { useAuth0 } from '@auth0/auth0-react';
 import { stripeService } from '../../services/stripeService';
 import { useSnackbar } from '../../hooks/useSnackbar';
 import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useSubscriptionStatus } from '../../hooks/useSubscriptionStatus';
 
-const tiers = [
+const getTierConfig = (isPremium: boolean) => [
   {
     title: 'Free',
     price: '0',
@@ -39,8 +40,9 @@ const tiers = [
       { name: 'Monthly progress reports', included: false },
       { name: 'Data export (CSV, JSON)', included: false },
     ],
-    buttonText: 'Current Plan',
+    buttonText: isPremium ? 'Downgrade' : 'Current Plan',
     buttonVariant: 'outlined',
+    isCurrentPlan: !isPremium,
   },
   {
     title: 'Premium',
@@ -58,8 +60,9 @@ const tiers = [
       { name: 'Monthly progress reports', included: true },
       { name: 'Data export (CSV, JSON)', included: true },
     ],
-    buttonText: 'Upgrade Now',
+    buttonText: isPremium ? 'Current Plan' : 'Upgrade Now',
     buttonVariant: 'contained',
+    isCurrentPlan: isPremium,
   },
 ];
 
@@ -71,6 +74,9 @@ const SubscriptionPage: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  const subscriptionStatus = useSubscriptionStatus();
+  const isPremium = subscriptionStatus === 'premium';
+  const tiers = getTierConfig(isPremium);
 
   useEffect(() => {
     const status = searchParams.get('payment_status');
@@ -81,9 +87,21 @@ const SubscriptionPage: React.FC = () => {
     }
   }, [searchParams, showSnackbar, navigate]);
 
-  const handleSubscribe = async (tier: string) => {
-    if (tier === 'Free') return;
+  const handleManageSubscription = async () => {
+    setIsLoading(true);
+    try {
+      const token = await getAccessTokenSilently();
+      const { url } = await stripeService.createCustomerPortalSession(token);
+      window.location.href = url;
+    } catch (error) {
+      console.error('Error creating portal session:', error);
+      showSnackbar('Failed to open subscription management. Please try again.', 'error');
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
+  const handleSubscribe = async (tier: string) => {
     if (!isAuthenticated || !user) {
       loginWithRedirect({
         appState: { returnTo: '/subscription' }
@@ -91,22 +109,31 @@ const SubscriptionPage: React.FC = () => {
       return;
     }
 
-    setIsLoading(true);
-    setError(null);
-    
-    try {
-      const token = await getAccessTokenSilently();
-      const { url } = await stripeService.createCheckoutSession(
-        user.sub as string,
-        user.email as string,
-        token
-      );
-      window.location.href = url;
-    } catch (err) {
-      console.error('Error creating checkout session:', err);
-      showSnackbar('Failed to initiate checkout. Please try again.', 'error');
-    } finally {
-      setIsLoading(false);
+    // If premium user clicking free tier, or free user clicking premium tier
+    if ((isPremium && tier === 'Free') || (!isPremium && tier === 'Premium')) {
+      if (isPremium) {
+        // Handle downgrade through portal
+        handleManageSubscription();
+      } else {
+        // Handle upgrade
+        setIsLoading(true);
+        setError(null);
+        
+        try {
+          const token = await getAccessTokenSilently();
+          const { url } = await stripeService.createCheckoutSession(
+            user.sub as string,
+            user.email as string,
+            token
+          );
+          window.location.href = url;
+        } catch (err) {
+          console.error('Error creating checkout session:', err);
+          showSnackbar('Failed to initiate checkout. Please try again.', 'error');
+        } finally {
+          setIsLoading(false);
+        }
+      }
     }
   };
 
@@ -121,9 +148,9 @@ const SubscriptionPage: React.FC = () => {
         </Typography>
       </Box>
 
-      <Grid container spacing={4} justifyContent="center">
+      <Grid2 container spacing={4} display="flex" justifyContent="center">
         {tiers.map((tier) => (
-          <Grid item key={tier.title} xs={12} sm={6} md={6}>
+          <Grid2 key={tier.title} size={{ xs: 12, sm: 6, md: 6 }}>
             <Card
               sx={{
                 height: '100%',
@@ -169,7 +196,14 @@ const SubscriptionPage: React.FC = () => {
                           <CloseIcon sx={{ color: 'error.main' }} />
                         )}
                       </ListItemIcon>
-                      <ListItemText primary={feature.name} />
+                      <ListItemText 
+                        primary={feature.name} 
+                        sx={{ 
+                          '.MuiListItemText-primary': { 
+                            color: 'text.primary'
+                          } 
+                        }} 
+                      />
                     </ListItem>
                   ))}
                 </List>
@@ -178,7 +212,7 @@ const SubscriptionPage: React.FC = () => {
                   variant={tier.buttonVariant as 'outlined' | 'contained'}
                   color="primary"
                   onClick={() => handleSubscribe(tier.title)}
-                  disabled={tier.title === 'Premium' && isLoading}
+                  disabled={tier.isCurrentPlan || (tier.title === 'Premium' && isLoading)}
                   sx={{ mt: 2 }}
                 >
                   {tier.title === 'Premium' && isLoading ? (
@@ -189,9 +223,9 @@ const SubscriptionPage: React.FC = () => {
                 </Button>
               </CardContent>
             </Card>
-          </Grid>
+          </Grid2>
         ))}
-      </Grid>
+      </Grid2>
 
       {error && (
         <Typography color="error" sx={{ mt: 2, textAlign: 'center' }}>
