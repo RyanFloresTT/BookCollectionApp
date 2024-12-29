@@ -17,7 +17,7 @@ import { Box, CssBaseline } from '@mui/material';
 const domain = process.env.REACT_APP_AUTH0_DOMAIN || '';
 const clientId = process.env.REACT_APP_AUTH0_CLIENT_ID || '';
 const audience = process.env.REACT_APP_AUTH0_AUDIENCE || '';
-const redirectUri = process.env.REACT_APP_AUTH0_CALLBACK_URL || 'http://localhost:5000';
+const redirectUri = process.env.REACT_APP_AUTH0_CALLBACK_URL || 'undefined callback url';
 
 // Create a client
 const queryClient = new QueryClient({
