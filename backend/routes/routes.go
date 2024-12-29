@@ -62,6 +62,7 @@ func SetupRouter(r *chi.Mux, db *gorm.DB) {
 	// Update checkout routes to use subscription controller
 	r.Route("/api/checkout", func(r chi.Router) {
 		r.With(middleware.AuthMiddleware).Post("/session", subscriptionController.CreateCheckoutSession)
+		r.With(middleware.AuthMiddleware).Post("/portal-session", subscriptionController.CreatePortalSession)
 		r.With(middleware.AuthMiddleware).Get("/subscription-status", subscriptionController.GetSubscriptionStatus)
 		r.Post("/webhook", subscriptionController.HandleWebhook)
 	})
