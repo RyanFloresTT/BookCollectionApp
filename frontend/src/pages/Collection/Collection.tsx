@@ -310,7 +310,7 @@ const { getAccessTokenSilently, isAuthenticated } = useAuth0();
                   <Button
                     variant="contained"
                     color="primary"
-                    href="/add-book"
+                    href="/"
                     sx={{ mt: 2 }}
                   >
                     Add Your First Book

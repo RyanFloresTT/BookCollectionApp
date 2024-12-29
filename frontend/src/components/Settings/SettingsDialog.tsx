@@ -14,6 +14,7 @@ import CloseIcon from '@mui/icons-material/Close';
 import { ThemeSettings } from './ThemeSettings';
 import { SubscriptionSettings } from './SubscriptionSettings';
 import { useSubscriptionStatus } from '../../hooks/useSubscriptionStatus';
+import { useThemeContext } from '../../context/ThemeContext';
 
 interface TabPanelProps {
   children?: React.ReactNode;
@@ -48,6 +49,7 @@ export const SettingsDialog: React.FC<SettingsDialogProps> = ({ open, onClose })
   const [activeTab, setActiveTab] = useState(0);
   const subscriptionStatus = useSubscriptionStatus();
   const isPremium = subscriptionStatus === 'premium';
+  const { mode: currentTheme, setMode: onThemeChange, color: currentColor, setColor: onColorChange } = useThemeContext();
 
   const handleTabChange = (event: React.SyntheticEvent, newValue: number) => {
     setActiveTab(newValue);
@@ -78,7 +80,14 @@ export const SettingsDialog: React.FC<SettingsDialogProps> = ({ open, onClose })
           </Tabs>
         </Box>
         <TabPanel value={activeTab} index={0}>
-          <ThemeSettings isPremium={isPremium} onClose={onClose} />
+          <ThemeSettings 
+            isPremium={isPremium} 
+            onClose={onClose}
+            currentTheme={currentTheme}
+            onThemeChange={onThemeChange}
+            currentColor={currentColor}
+            onColorChange={onColorChange}
+          />
         </TabPanel>
         <TabPanel value={activeTab} index={1}>
           <SubscriptionSettings status={subscriptionStatus} onClose={onClose} />

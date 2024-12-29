@@ -9,6 +9,10 @@ import Collection from './pages/Collection/Collection';
 import SubscriptionPage from './pages/Subscription/Subscription';
 import { Auth0Provider, useAuth0 } from '@auth0/auth0-react';
 import { setAuthToken } from './services/api';
+import { ThemeProvider } from './context/ThemeContext';
+import { SnackbarProvider } from './context/SnackbarContext';
+import { useSubscriptionStatus } from './hooks/useSubscriptionStatus';
+import { Box, CssBaseline } from '@mui/material';
 
 const domain = process.env.REACT_APP_AUTH0_DOMAIN || '';
 const clientId = process.env.REACT_APP_AUTH0_CLIENT_ID || '';
@@ -28,6 +32,8 @@ const queryClient = new QueryClient({
 // Create an AuthSetup component to handle auth token setup
 const AuthSetup: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { getAccessTokenSilently, isAuthenticated } = useAuth0();
+  const subscriptionStatus = useSubscriptionStatus();
+  const isPremium = subscriptionStatus === 'premium';
 
   useEffect(() => {
     setAuthToken(async () => {
@@ -41,7 +47,20 @@ const AuthSetup: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     });
   }, [getAccessTokenSilently, isAuthenticated]);
 
-  return <>{children}</>;
+  return (
+    <ThemeProvider isPremium={isPremium}>
+      <CssBaseline />
+      <SnackbarProvider>
+        <Box sx={{ 
+          minHeight: '100vh',
+          bgcolor: 'background.default',
+          color: 'text.primary'
+        }}>
+          {children}
+        </Box>
+      </SnackbarProvider>
+    </ThemeProvider>
+  );
 };
 
 const App: React.FC = () => {
