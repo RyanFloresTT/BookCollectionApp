@@ -1,5 +1,4 @@
-# Stage 1: Build the Go application
-FROM golang:1.22.4 AS builder
+FROM golang:1.22.4-alpine AS builder
 
 # Set environment variables for static linking
 ENV CGO_ENABLED=0
@@ -24,20 +23,17 @@ RUN go build -o backend .
 # Stage 2: Create the final image
 FROM alpine:latest
 
-# Install CA certificates (required for HTTPS)
-RUN apk --no-cache add ca-certificates
+# Install CA certificates and curl (required for HTTPS and health checks)
+RUN apk --no-cache add ca-certificates curl
 
 # Set the Current Working Directory inside the container
-WORKDIR /root/
+WORKDIR /app
 
 # Copy the binary from the builder stage
 COPY --from=builder /app/backend .
 
-# Ensure the binary has execute permissions
-RUN chmod +x backend
-
-# (Optional) Verify the binary exists and is executable
-RUN ls -la backend
+# Expose the port
+EXPOSE 8080
 
 # Command to run the executable
 CMD ["./backend"]

@@ -40,6 +40,12 @@ func SetupRouter(r *chi.Mux, db *gorm.DB) {
 		w.WriteHeader(http.StatusOK)
 	})
 
+	// Health Check
+	r.Get("/health", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.Write([]byte(`{"status":"healthy"}`))
+	})
+
 	// Controllers
 	bookController := controllers.NewBookController(db)
 	subscriptionController := controllers.NewSubscriptionController(db)
@@ -58,11 +64,5 @@ func SetupRouter(r *chi.Mux, db *gorm.DB) {
 		r.With(middleware.AuthMiddleware).Post("/session", subscriptionController.CreateCheckoutSession)
 		r.With(middleware.AuthMiddleware).Get("/subscription-status", subscriptionController.GetSubscriptionStatus)
 		r.Post("/webhook", subscriptionController.HandleWebhook)
-	})
-
-	// Health Check
-	r.Get("/health", func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusOK)
-		w.Write([]byte("OK"))
 	})
 }

@@ -25,7 +25,7 @@ func InitializeDatabase() *gorm.DB {
 	if err != nil {
 		log.Fatalf("Failed to auto-migrate book model: %v", err)
 	}
-	// Auto-migrate models
+
 	err = db.AutoMigrate(&models.User{})
 	if err != nil {
 		log.Fatalf("Failed to auto-migrate user model: %v", err)
