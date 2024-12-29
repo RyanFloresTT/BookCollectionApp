@@ -23,7 +23,6 @@ func init() {
 }
 
 func main() {
-
 	// Initialize Chi router
 	r := chi.NewRouter()
 
