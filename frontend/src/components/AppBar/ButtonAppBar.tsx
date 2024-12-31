@@ -23,11 +23,9 @@ export default function ButtonAppBar() {
         </LogoLink>
 
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <NavigationButtons />
           {isAuthenticated ? (
-            <>
-              <NavigationButtons />
-              <UserMenu user={user || {}} />
-            </>
+            <UserMenu user={user || {}} />
           ) : (
             <Button
               color="inherit"
