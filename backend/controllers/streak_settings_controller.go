@@ -24,23 +24,32 @@ func (c *StreakSettingsController) GetStreakSettings(w http.ResponseWriter, r *h
 
 	var settings models.StreakSettings
 
+	// Debug: Print the userID we're searching for
+	fmt.Printf("GetStreakSettings - Searching for settings with auth0_id: %s\n", userID)
+
+	// Simplified query without ORDER BY
 	if err := c.db.Where("auth0_id = ?", userID).First(&settings).Error; err != nil {
-		fmt.Printf("GetStreakSettings - Error finding user with auth0_id %s: %v\n", userID, err)
 		if err == gorm.ErrRecordNotFound {
-			// Return default settings if none exist
+			fmt.Printf("GetStreakSettings - No settings found for user %s, returning defaults\n", userID)
+			// Return default settings if none exist - this is an expected case
 			defaultSettings := models.StreakSettings{
-				Auth0ID:      userID,
-				ExcludedDays: models.IntArray{}, // Initialize as empty array
-				CreatedAt:    time.Now(),
-				UpdatedAt:    time.Now(),
+					Auth0ID:      userID,
+					ExcludedDays: models.IntArray{}, // Initialize as empty array
+					CreatedAt:    time.Now(),
+					UpdatedAt:    time.Now(),
 			}
 			w.Header().Set("Content-Type", "application/json")
 			json.NewEncoder(w).Encode(defaultSettings)
 			return
 		}
+		// Only log and return error for unexpected errors
+		fmt.Printf("GetStreakSettings - Unexpected error for user %s: %v\n", userID, err)
 		http.Error(w, "Error fetching streak settings", http.StatusInternalServerError)
 		return
 	}
+
+	// Debug: Print the settings we found
+	fmt.Printf("GetStreakSettings - Found settings for user %s: %+v\n", userID, settings)
 
 	// Ensure ExcludedDays is never nil
 	if settings.ExcludedDays == nil {
@@ -62,6 +71,9 @@ func (c *StreakSettingsController) UpdateStreakSettings(w http.ResponseWriter, r
 		return
 	}
 
+	// Debug: Print the update we're trying to make
+	fmt.Printf("UpdateStreakSettings - Updating settings for user %s with days: %v\n", userID, input.ExcludedDays)
+
 	// Ensure input.ExcludedDays is never nil
 	if input.ExcludedDays == nil {
 		input.ExcludedDays = []int{}
@@ -80,10 +92,14 @@ func (c *StreakSettingsController) UpdateStreakSettings(w http.ResponseWriter, r
 	settings.ExcludedDays = models.IntArray(input.ExcludedDays)
 	settings.UpdatedAt = time.Now()
 	if result.Error == gorm.ErrRecordNotFound {
-			settings.CreatedAt = time.Now()
+		settings.CreatedAt = time.Now()
 	}
 
+	// Debug: Print what we're about to save
+	fmt.Printf("UpdateStreakSettings - Saving settings: %+v\n", settings)
+
 	if err := c.db.Save(&settings).Error; err != nil {
+		fmt.Printf("UpdateStreakSettings - Error saving settings: %v\n", err)
 		http.Error(w, "Error updating streak settings", http.StatusInternalServerError)
 		return
 	}
