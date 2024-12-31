@@ -59,6 +59,12 @@ func SetupRouter(r *chi.Mux, db *gorm.DB) {
 		r.With(middleware.AuthMiddleware).Patch("/{id}", bookController.UpdateBook)
 	})
 
+	// User routes
+	r.Route("/api/user", func(r chi.Router) {
+		r.With(middleware.AuthMiddleware).Get("/reading-goal", bookController.GetReadingGoal)
+		r.With(middleware.AuthMiddleware).Put("/reading-goal", bookController.UpdateReadingGoal)
+	})
+
 	// Update checkout routes to use subscription controller
 	r.Route("/api/checkout", func(r chi.Router) {
 		r.With(middleware.AuthMiddleware).Post("/session", subscriptionController.CreateCheckoutSession)

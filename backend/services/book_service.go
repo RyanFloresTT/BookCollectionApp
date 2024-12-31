@@ -260,3 +260,35 @@ func (s *BookService) UpdateBook(ctx context.Context, userID string, bookID stri
 
 	return nil
 }
+
+// UpdateReadingGoal updates the user's reading goal
+func (s *BookService) UpdateReadingGoal(ctx context.Context, auth0ID string, readingGoal uint) error {
+	var user models.User
+
+	// Find the user
+	err := s.DB.Where("auth0_id = ?", auth0ID).First(&user).Error
+	if err != nil {
+		return fmt.Errorf("failed to find user: %v", err)
+	}
+
+	// Update the reading goal
+	err = s.DB.Model(&user).Update("reading_goal", readingGoal).Error
+	if err != nil {
+		return fmt.Errorf("failed to update reading goal: %v", err)
+	}
+
+	return nil
+}
+
+// GetReadingGoal gets the user's reading goal
+func (s *BookService) GetReadingGoal(ctx context.Context, auth0ID string) (uint, error) {
+	var user models.User
+
+	// Find the user
+	err := s.DB.Where("auth0_id = ?", auth0ID).First(&user).Error
+	if err != nil {
+		return 0, fmt.Errorf("failed to find user: %v", err)
+	}
+
+	return user.ReadingGoal, nil
+}

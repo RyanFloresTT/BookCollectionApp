@@ -255,3 +255,58 @@ func (bc *BookController) UpdateBook(w http.ResponseWriter, r *http.Request) {
 		"message": "Book updated successfully",
 	})
 }
+
+// UpdateReadingGoal handles PUT /api/user/reading-goal
+func (bc *BookController) UpdateReadingGoal(w http.ResponseWriter, r *http.Request) {
+	// Get user ID from context
+	userID, ok := r.Context().Value(middleware.UserIDKey).(string)
+	if !ok {
+		http.Error(w, "User not found in context", http.StatusUnauthorized)
+		return
+	}
+
+	// Parse request body
+	var req struct {
+		ReadingGoal uint `json:"readingGoal"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid request payload", http.StatusBadRequest)
+		return
+	}
+
+	// Update the user's reading goal
+	err := bc.BookService.UpdateReadingGoal(r.Context(), userID, req.ReadingGoal)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Failed to update reading goal: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(map[string]string{
+		"message": "Reading goal updated successfully",
+	})
+}
+
+// GetReadingGoal handles GET /api/user/reading-goal
+func (bc *BookController) GetReadingGoal(w http.ResponseWriter, r *http.Request) {
+	// Get user ID from context
+	userID, ok := r.Context().Value(middleware.UserIDKey).(string)
+	if !ok {
+		http.Error(w, "User not found in context", http.StatusUnauthorized)
+		return
+	}
+
+	// Get the user's reading goal
+	goal, err := bc.BookService.GetReadingGoal(r.Context(), userID)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Failed to get reading goal: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]uint{
+		"readingGoal": goal,
+	})
+}

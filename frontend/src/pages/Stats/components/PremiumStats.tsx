@@ -9,10 +9,12 @@ import {
   ChartData,
   ChartOptions
 } from 'chart.js';
-import { Box, Button, Paper, Typography } from '@mui/material';
+import { Box, Button, Paper, Typography, IconButton, TextField, Dialog, DialogTitle, DialogContent, DialogActions, LinearProgress } from '@mui/material';
 import Grid2 from '@mui/material/Grid2';
-import { Bar } from 'react-chartjs-2';
+import { Bar, Pie } from 'react-chartjs-2';
 import { useNavigate } from 'react-router-dom';
+import EditIcon from '@mui/icons-material/Edit';
+import { useState } from 'react';
 
 ChartJS.register(
   CategoryScale,
@@ -38,12 +40,52 @@ interface PremiumStatsProps {
   monthlyStats: MonthlyStats[] | undefined;
   readingSpeed: number | undefined;
   totalReadingDays: number | undefined;
-  readingHabits: { [key: string]: number } | undefined;
   genreVariety: { genre: string; count: number }[] | undefined;
   longestBook: { title: string; pages: number } | undefined;
   fastestRead: { title: string; daysToComplete: number; pagesPerDay: number } | undefined;
   bestRatedGenre: { genre: string; averageRating: number } | undefined;
   readingGoalProgress: { booksTarget: number; booksRead: number; percentComplete: number } | undefined;
+  pagesPerGenreData: {
+    labels: string[];
+    datasets: {
+      data: number[];
+      backgroundColor: string[];
+    }[];
+  };
+  onUpdateReadingGoal: (newGoal: number) => Promise<void>;
+  peakReadingSeason?: {
+    season: string;
+    count: number;
+  };
+  readingVelocity?: {
+    trend: 'increasing' | 'decreasing' | 'stable';
+    percentage: number;
+  };
+  bookLengthStats?: {
+    sweetSpot: { range: string; count: number };
+    lengthDistribution: { short: number; medium: number; long: number };
+  };
+  ratingAnalytics?: {
+    ratingByLength: { short: number; medium: number; long: number };
+    genreSatisfaction: { [genre: string]: number };
+    criticalIndex: number;
+  };
+  genreAnalytics?: {
+    genreEvolution: { genre: string; trend: 'up' | 'down' | 'stable' }[];
+    speedByGenre: { genre: string; averageSpeed: number }[];
+    genreCombinations: { genres: [string, string]; count: number }[];
+    completionPatterns: { genre: string; avgCompletionDays: number }[];
+    readingSprints: {
+      startDate: string;
+      endDate: string;
+      booksCompleted: number;
+      daysElapsed: number;
+    }[];
+  };
+  timeAnalytics?: {
+    weekendReader: boolean;
+    averageCompletionByGenre: { [genre: string]: number };
+  };
 }
 
 interface StatsCardProps {
@@ -121,6 +163,130 @@ const PremiumPrompt = () => (
   </Box>
 );
 
+interface GoalProgressProps {
+  current: number;
+  target: number;
+  onEditGoal: () => void;
+}
+
+const GoalProgress = ({ current, target, onEditGoal }: GoalProgressProps) => {
+  const progress = (current / target) * 100;
+  const remaining = target - current;
+  const isAhead = current > (target * (new Date().getMonth() + 1) / 12);
+
+  return (
+    <Paper 
+      elevation={3} 
+      sx={{ 
+        p: 3,
+        mb: 4,
+        background: 'linear-gradient(to right, rgba(0,0,0,0.02), rgba(0,0,0,0.05))',
+        position: 'relative',
+        overflow: 'hidden'
+      }}
+    >
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+        <Typography variant="h5" color="primary" sx={{ fontWeight: 'medium' }}>
+          {new Date().getFullYear()} Reading Goal
+        </Typography>
+        <IconButton onClick={onEditGoal} size="small" sx={{ color: 'primary.main' }}>
+          <EditIcon />
+        </IconButton>
+      </Box>
+
+      {/* Progress Bar */}
+      <Box sx={{ position: 'relative', mb: 2 }}>
+        <LinearProgress
+          variant="determinate"
+          value={Math.min(progress, 100)}
+          sx={{
+            height: 20,
+            borderRadius: 2,
+            backgroundColor: 'rgba(0,0,0,0.05)',
+            '& .MuiLinearProgress-bar': {
+              background: isAhead
+                ? 'linear-gradient(45deg, #4CAF50 30%, #81C784 90%)'
+                : 'linear-gradient(45deg, #2196F3 30%, #21CBF3 90%)',
+              borderRadius: 2,
+            },
+          }}
+        />
+        <Typography
+          variant="body2"
+          sx={{
+            position: 'absolute',
+            top: '50%',
+            left: '50%',
+            transform: 'translate(-50%, -50%)',
+            color: 'white',
+            textShadow: '0 0 4px rgba(0,0,0,0.5)',
+            fontWeight: 'bold'
+          }}
+        >
+          {Math.round(progress)}%
+        </Typography>
+      </Box>
+
+      {/* Stats */}
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', px: 1 }}>
+        <Typography variant="body1">
+          <strong>{current}</strong> of <strong>{target}</strong> books read
+        </Typography>
+        <Typography variant="body1" color={isAhead ? 'success.main' : 'primary'}>
+          {remaining > 0 
+            ? `${remaining} books to go`
+            : '🎉 Goal completed!'
+          }
+        </Typography>
+      </Box>
+    </Paper>
+  );
+};
+
+interface GoalEditorDialogProps {
+  open: boolean;
+  currentGoal: number;
+  onClose: () => void;
+  onSave: (newGoal: number) => void;
+}
+
+const GoalEditorDialog = ({ open, currentGoal, onClose, onSave }: GoalEditorDialogProps) => {
+  const [goal, setGoal] = useState(currentGoal);
+
+  const handleSave = () => {
+    if (goal > 0) {
+      onSave(goal);
+      onClose();
+    }
+  };
+
+  return (
+    <Dialog open={open} onClose={onClose}>
+      <DialogTitle>Edit Reading Goal</DialogTitle>
+      <DialogContent>
+        <Typography variant="body1" sx={{ mb: 2 }}>
+          How many books would you like to read this year?
+        </Typography>
+        <TextField
+          autoFocus
+          label="Books per year"
+          type="number"
+          fullWidth
+          value={goal}
+          onChange={(e) => setGoal(Math.max(1, parseInt(e.target.value) || 0))}
+          inputProps={{ min: 1 }}
+        />
+      </DialogContent>
+      <DialogActions>
+        <Button onClick={onClose}>Cancel</Button>
+        <Button onClick={handleSave} variant="contained" color="primary">
+          Save
+        </Button>
+      </DialogActions>
+    </Dialog>
+  );
+};
+
 export const PremiumStats = ({
   isPremium,
   averageReadingTime,
@@ -130,14 +296,35 @@ export const PremiumStats = ({
   monthlyStats,
   readingSpeed,
   totalReadingDays,
-  readingHabits,
   genreVariety,
   longestBook,
   fastestRead,
   bestRatedGenre,
-  readingGoalProgress
+  readingGoalProgress,
+  pagesPerGenreData,
+  onUpdateReadingGoal,
+  peakReadingSeason,
+  readingVelocity,
+  bookLengthStats,
+  ratingAnalytics,
+  genreAnalytics,
+  timeAnalytics
 }: PremiumStatsProps) => {
   const navigate = useNavigate();
+  const [isGoalEditorOpen, setIsGoalEditorOpen] = useState(false);
+
+  const handleEditGoal = () => {
+    setIsGoalEditorOpen(true);
+  };
+
+  const handleSaveGoal = async (newGoal: number) => {
+    try {
+      await onUpdateReadingGoal(newGoal);
+      setIsGoalEditorOpen(false);
+    } catch (error) {
+      console.error('Failed to update reading goal:', error);
+    }
+  };
 
   // Monthly stats chart data
   const chartData: ChartData<'bar'> | undefined = monthlyStats ? {
@@ -181,177 +368,325 @@ export const PremiumStats = ({
     }
   };
 
-  if (!isPremium) {
-    return (
-      <Grid2 container>
-        <Grid2 size={{ xs: 12 }}>
-          <Paper elevation={3} sx={{ p: 3, textAlign: 'center' }}>
-            <Typography variant="h6" gutterBottom>
-              Unlock Advanced Reading Insights
-            </Typography>
-            <Typography variant="body1" sx={{ mb: 2 }}>
-              Upgrade to Premium to discover:
-            </Typography>
-            <Grid2 container spacing={2} sx={{ mb: 3, justifyContent: 'center' }}>
-              <Grid2 size={{ xs: 12, sm: 6, md: 4 }}>
-                <Typography>📚 Reading Speed Analysis</Typography>
-                <Typography>🎯 Personal Reading Goals</Typography>
-              </Grid2>
-              <Grid2 size={{ xs: 12, sm: 6, md: 4 }}>
-                <Typography>📊 Reading Habit Patterns</Typography>
-                <Typography>🏆 Achievement Tracking</Typography>
-              </Grid2>
-              <Grid2 size={{ xs: 12, sm: 6, md: 4 }}>
-                <Typography>📈 Genre Exploration Stats</Typography>
-                <Typography>⚡ Speed Reading Insights</Typography>
-              </Grid2>
-            </Grid2>
-            <Button
-              variant="contained"
-              color="primary"
-              onClick={() => navigate('/subscription')}
-              size="large"
-            >
-              Upgrade Now
-            </Button>
-          </Paper>
-        </Grid2>
-      </Grid2>
-    );
-  }
-
-  // Genre variety display
-  const genreVarietyDisplay = genreVariety ? (
-    <Typography variant="body1">
-      You've explored {genreVariety.map(g => g.genre).join(', ')}
-    </Typography>
-  ) : null;
-
-  // Completion rate display
-  const completionRateDisplay = completionRate !== undefined ? (
-    <Typography variant="body1">
-      {Math.round(completionRate)}% completion rate
-    </Typography>
-  ) : null;
-
   return (
     <Box sx={{ py: 2 }}>
-      {!isPremium ? (
-        <PremiumPrompt />
-      ) : (
-        <Grid2 container spacing={3}>
-          {/* Reading Speed */}
-          {readingSpeed && (
-            <Grid2 size={{ xs: 12, sm: 6, md: 4 }}>
-              <StatsCard
-                title="📚 Reading Speed"
-                value={`${Math.round(readingSpeed)} pages/day`}
-              />
-            </Grid2>
-          )}
+      {/* Goal Progress */}
+      {readingGoalProgress && isPremium && (
+        <>
+          <GoalProgress
+            current={readingGoalProgress.booksRead}
+            target={readingGoalProgress.booksTarget}
+            onEditGoal={handleEditGoal}
+          />
+          <GoalEditorDialog
+            open={isGoalEditorOpen}
+            currentGoal={readingGoalProgress.booksTarget}
+            onClose={() => setIsGoalEditorOpen(false)}
+            onSave={handleSaveGoal}
+          />
+        </>
+      )}
 
-          {/* Total Reading Days */}
-          {totalReadingDays && (
-            <Grid2 size={{ xs: 12, sm: 6, md: 4 }}>
-              <StatsCard
-                title="📅 Total Reading Days"
-                value={totalReadingDays.toString()}
-              />
-            </Grid2>
-          )}
+      {/* Key Stats Section */}
+      <Grid2 container spacing={3} sx={{ mb: 4 }}>
+        {/* Current Streak - Highlighted */}
+        {typeof currentStreak === 'number' && (
+          <Grid2 size={{ xs: 12, md: 4 }}>
+            <Paper 
+              elevation={3} 
+              sx={{ 
+                p: 3, 
+                height: '100%',
+                background: 'linear-gradient(45deg, #FF9800 30%, #FFB74D 90%)',
+                color: 'white'
+              }}
+            >
+              <Typography variant="h6" gutterBottom>Current Streak</Typography>
+              <Typography variant="h3" sx={{ mb: 2 }}>
+                {currentStreak}
+              </Typography>
+              <Typography>days reading</Typography>
+            </Paper>
+          </Grid2>
+        )}
 
-          {/* Reading Habits */}
-          {readingHabits && (
-            <Grid2 size={{ xs: 12, sm: 6, md: 4 }}>
-              <StatsCard
-                title="⏰ Favorite Reading Time"
-                value={Object.entries(readingHabits)
-                  .sort((a, b) => b[1] - a[1])[0][0]
-                  .replace(/([A-Z])/g, ' $1')
-                  .trim()}
-              />
-            </Grid2>
-          )}
+        {/* Reading Speed - Highlighted */}
+        {readingSpeed && (
+          <Grid2 size={{ xs: 12, md: 4 }}>
+            <Paper 
+              elevation={3} 
+              sx={{ 
+                p: 3, 
+                height: '100%',
+                background: 'linear-gradient(45deg, #4CAF50 30%, #81C784 90%)',
+                color: 'white'
+              }}
+            >
+              <Typography variant="h6" gutterBottom>Reading Speed</Typography>
+              <Typography variant="h3" sx={{ mb: 2 }}>
+                {Math.round(readingSpeed)}
+              </Typography>
+              <Typography>pages per day</Typography>
+            </Paper>
+          </Grid2>
+        )}
 
-          {/* Genre Variety */}
-          {genreVariety && genreVariety.length > 0 && (
-            <Grid2 size={{ xs: 12, sm: 6, md: 4 }}>
-              <StatsCard
-                title="📚 Genre Variety"
-                value={`${genreVariety.length} genres`}
-              />
-            </Grid2>
-          )}
+        {/* Completion Rate - Highlighted */}
+        {typeof completionRate === 'number' && (
+          <Grid2 size={{ xs: 12, md: 4 }}>
+            <Paper 
+              elevation={3} 
+              sx={{ 
+                p: 3, 
+                height: '100%',
+                background: 'linear-gradient(45deg, #9C27B0 30%, #BA68C8 90%)',
+                color: 'white'
+              }}
+            >
+              <Typography variant="h6" gutterBottom>Completion Rate</Typography>
+              <Typography variant="h3" sx={{ mb: 2 }}>
+                {Math.round(completionRate)}%
+              </Typography>
+              <Typography>of started books finished</Typography>
+            </Paper>
+          </Grid2>
+        )}
+      </Grid2>
 
-          {/* Longest Book */}
-          {longestBook && (
-            <Grid2 size={{ xs: 12, sm: 6, md: 4 }}>
-              <StatsCard
-                title="📖 Longest Book"
-                value={`${longestBook.title} (${longestBook.pages} pages)`}
-              />
-            </Grid2>
-          )}
+      {/* Reading Patterns Section */}
+      {isPremium && (
+        <Paper elevation={2} sx={{ p: 3, mb: 4 }}>
+          <Typography variant="h5" gutterBottom color="primary" sx={{ mb: 3 }}>
+            📚 Reading Patterns
+          </Typography>
+          <Grid2 container spacing={3}>
+            {/* Peak Season */}
+            {peakReadingSeason && (
+              <Grid2 size={{ xs: 12, sm: 6, md: 3 }}>
+                <StatsCard
+                  title="Peak Season"
+                  value={`${peakReadingSeason.season} (${peakReadingSeason.count} books)`}
+                />
+              </Grid2>
+            )}
+            
+            {/* Reading Velocity */}
+            {readingVelocity && (
+              <Grid2 size={{ xs: 12, sm: 6, md: 3 }}>
+                <StatsCard
+                  title="Progress Trend"
+                  value={`${readingVelocity.trend === 'stable' ? 'Steady pace' : 
+                    `${readingVelocity.trend === 'increasing' ? 'Getting faster' : 'Slowing down'} by ${readingVelocity.percentage.toFixed(1)}%`}`}
+                />
+              </Grid2>
+            )}
 
-          {/* Fastest Read */}
-          {fastestRead && (
-            <Grid2 size={{ xs: 12, sm: 6, md: 4 }}>
-              <StatsCard
-                title="⚡ Fastest Read"
-                value={`${fastestRead.title} (${fastestRead.pagesPerDay} pages/day)`}
-              />
-            </Grid2>
-          )}
+            {/* Best Reading Sprint */}
+            {genreAnalytics?.readingSprints[0] && (
+              <Grid2 size={{ xs: 12, sm: 6, md: 3 }}>
+                <StatsCard
+                  title="Best Sprint"
+                  value={`${genreAnalytics.readingSprints[0].booksCompleted} books in ${genreAnalytics.readingSprints[0].daysElapsed} days`}
+                />
+              </Grid2>
+            )}
 
-          {/* Best Rated Genre */}
-          {bestRatedGenre && (
-            <Grid2 size={{ xs: 12, sm: 6, md: 4 }}>
-              <StatsCard
-                title="⭐ Best Rated Genre"
-                value={`${bestRatedGenre.genre} (${bestRatedGenre.averageRating.toFixed(1)} stars)`}
-              />
-            </Grid2>
-          )}
+            {/* Reading Pattern */}
+            {timeAnalytics && (
+              <Grid2 size={{ xs: 12, sm: 6, md: 3 }}>
+                <StatsCard
+                  title="Preferred Days"
+                  value={`${timeAnalytics.weekendReader ? 'Weekend' : 'Weekday'} reader`}
+                />
+              </Grid2>
+            )}
+          </Grid2>
+        </Paper>
+      )}
 
-          {/* Reading Goal Progress */}
-          {readingGoalProgress && (
-            <Grid2 size={{ xs: 12, sm: 6, md: 4 }}>
-              <StatsCard
-                title="🎯 Reading Goal Progress"
-                value={`${readingGoalProgress.booksRead}/${readingGoalProgress.booksTarget} books (${Math.round(readingGoalProgress.percentComplete)}%)`}
-              />
-            </Grid2>
-          )}
+      {/* Genre Insights Section */}
+      {isPremium && (
+        <Paper elevation={2} sx={{ p: 3, mb: 4 }}>
+          <Typography variant="h5" gutterBottom color="primary" sx={{ mb: 3 }}>
+            📊 Genre Insights
+          </Typography>
+          <Grid2 container spacing={3}>
+            {/* Genre Variety */}
+            {genreVariety && genreVariety.length > 0 && (
+              <Grid2 size={{ xs: 12, sm: 6, md: 3 }}>
+                <StatsCard
+                  title="Genre Variety"
+                  value={`${genreVariety.length} genres explored`}
+                />
+              </Grid2>
+            )}
 
-          {/* Monthly Stats Chart */}
-          {chartData && (
-            <Grid2 size={{ xs: 12 }}>
-              <Paper 
-                elevation={2} 
-                sx={{ 
-                  p: 3,
-                  transition: 'transform 0.2s, box-shadow 0.2s',
-                  '&:hover': {
-                    transform: 'translateY(-4px)',
-                    boxShadow: 4
-                  }
-                }}
-              >
-                <Typography 
-                  variant="h6" 
-                  gutterBottom 
-                  color="primary.main"
-                  sx={{ 
-                    fontWeight: 'medium',
-                    mb: 3
+            {/* Best Rated Genre */}
+            {bestRatedGenre && (
+              <Grid2 size={{ xs: 12, sm: 6, md: 3 }}>
+                <StatsCard
+                  title="Best Rated"
+                  value={`${bestRatedGenre.genre} (${bestRatedGenre.averageRating.toFixed(1)} ⭐)`}
+                />
+              </Grid2>
+            )}
+
+            {/* Perfect Genre Pair */}
+            {genreAnalytics?.genreCombinations[0] && (
+              <Grid2 size={{ xs: 12, sm: 6, md: 3 }}>
+                <StatsCard
+                  title="Perfect Pair"
+                  value={`${genreAnalytics.genreCombinations[0].genres.join(' + ')}`}
+                />
+              </Grid2>
+            )}
+
+            {/* Fastest Genre */}
+            {genreAnalytics?.speedByGenre[0] && (
+              <Grid2 size={{ xs: 12, sm: 6, md: 3 }}>
+                <StatsCard
+                  title="Fastest Genre"
+                  value={`${genreAnalytics.speedByGenre[0].genre}`}
+                />
+              </Grid2>
+            )}
+          </Grid2>
+
+          {/* Genre Distribution Chart */}
+          {pagesPerGenreData && (
+            <Box sx={{ 
+              mt: 4, 
+              height: { xs: 400, md: 300 },
+              width: '100%',
+              display: 'flex',
+              flexDirection: { xs: 'column', md: 'row' },
+              alignItems: 'center'
+            }}>
+              <Typography variant="h6" gutterBottom>Pages Read by Genre</Typography>
+              <Box sx={{ 
+                width: '100%',
+                height: '100%',
+                position: 'relative'
+              }}>
+                <Pie
+                  data={pagesPerGenreData}
+                  options={{
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                      legend: {
+                        position: 'right',
+                        labels: {
+                          boxWidth: 12,
+                          font: {
+                            size: 11
+                          }
+                        },
+                      },
+                    },
                   }}
-                >
-                  📊 Monthly Reading Progress
-                </Typography>
-                <Bar data={chartData} options={chartOptions} />
-              </Paper>
-            </Grid2>
+                />
+              </Box>
+            </Box>
           )}
+        </Paper>
+      )}
+
+      {/* Book Stats Section */}
+      {isPremium && (
+        <Paper elevation={2} sx={{ p: 3, mb: 4 }}>
+          <Typography variant="h5" gutterBottom color="primary" sx={{ mb: 3 }}>
+            📖 Book Stats
+          </Typography>
+          <Grid2 container spacing={3}>
+            {/* Longest Book */}
+            {longestBook && (
+              <Grid2 size={{ xs: 12, sm: 6, md: 3 }}>
+                <StatsCard
+                  title="Longest Book"
+                  value={`${longestBook.title} (${longestBook.pages} pages)`}
+                />
+              </Grid2>
+            )}
+
+            {/* Fastest Read */}
+            {fastestRead && (
+              <Grid2 size={{ xs: 12, sm: 6, md: 3 }}>
+                <StatsCard
+                  title="Fastest Read"
+                  value={`${fastestRead.title} (${fastestRead.pagesPerDay} pages/day)`}
+                />
+              </Grid2>
+            )}
+
+            {/* Book Length Sweet Spot */}
+            {bookLengthStats && (
+              <Grid2 size={{ xs: 12, sm: 6, md: 3 }}>
+                <StatsCard
+                  title="Sweet Spot"
+                  value={`${bookLengthStats.sweetSpot.range} pages`}
+                />
+              </Grid2>
+            )}
+
+            {/* Rating Consistency */}
+            {ratingAnalytics && (
+              <Grid2 size={{ xs: 12, sm: 6, md: 3 }}>
+                <StatsCard
+                  title="Rating Style"
+                  value={`${(ratingAnalytics.criticalIndex * 100).toFixed(1)}% variation`}
+                />
+              </Grid2>
+            )}
+          </Grid2>
+        </Paper>
+      )}
+
+      {/* Monthly Progress Chart */}
+      {chartData && isPremium && (
+        <Paper elevation={2} sx={{ p: 3, mb: 4 }}>
+          <Typography variant="h5" gutterBottom color="primary" sx={{ mb: 3 }}>
+            📈 Monthly Progress
+          </Typography>
+          <Bar data={chartData} options={chartOptions} />
+        </Paper>
+      )}
+
+      {/* Premium Prompt at the bottom */}
+      {!isPremium && (
+        <Grid2 container>
+          <Grid2 size={{ xs: 12 }} sx={{ mt: 4, mb: 6 }}>
+            <Paper elevation={3} sx={{ p: 3, textAlign: 'center' }}>
+              <Typography variant="h6" gutterBottom>
+                Unlock Advanced Reading Insights
+              </Typography>
+              <Typography variant="body1" sx={{ mb: 2 }}>
+                Upgrade to Premium to discover:
+              </Typography>
+              <Grid2 container spacing={2} sx={{ mb: 3, justifyContent: 'center' }}>
+                <Grid2 size={{ xs: 12, sm: 6, md: 4 }}>
+                  <Typography>📚 Reading Speed Analysis</Typography>
+                  <Typography>🎯 Personal Reading Goals</Typography>
+                </Grid2>
+                <Grid2 size={{ xs: 12, sm: 6, md: 4 }}>
+                  <Typography>📊 Reading Habit Patterns</Typography>
+                  <Typography>🏆 Achievement Tracking</Typography>
+                </Grid2>
+                <Grid2 size={{ xs: 12, sm: 6, md: 4 }}>
+                  <Typography>📈 Genre Exploration Stats</Typography>
+                  <Typography>⚡ Speed Reading Insights</Typography>
+                </Grid2>
+              </Grid2>
+              <Button
+                variant="contained"
+                color="primary"
+                onClick={() => navigate('/subscription')}
+                size="large"
+              >
+                Upgrade Now
+              </Button>
+            </Paper>
+          </Grid2>
         </Grid2>
       )}
     </Box>
