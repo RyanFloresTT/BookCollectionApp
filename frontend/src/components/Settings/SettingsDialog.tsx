@@ -48,7 +48,7 @@ interface SettingsDialogProps {
 export const SettingsDialog: React.FC<SettingsDialogProps> = ({ open, onClose }) => {
   const [activeTab, setActiveTab] = useState(0);
   const subscriptionStatus = useSubscriptionStatus();
-  const isPremium = subscriptionStatus === 'premium';
+  const isPremium = subscriptionStatus.isPremium;
   const { mode: currentTheme, setMode: onThemeChange, color: currentColor, setColor: onColorChange } = useThemeContext();
 
   const handleTabChange = (event: React.SyntheticEvent, newValue: number) => {
