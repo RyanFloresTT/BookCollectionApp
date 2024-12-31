@@ -9,12 +9,63 @@ import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import TrendingUpIcon from '@mui/icons-material/TrendingUp';
 import MenuBookIcon from '@mui/icons-material/MenuBook';
 import AccessTimeIcon from '@mui/icons-material/AccessTime';
+import { useQuery } from '@tanstack/react-query';
+import axios from 'axios';
+import api from '../../../../services/api';
+
+interface StreakSettings {
+  auth0_id: string;
+  excluded_days: number[];
+  created_at: string;
+  updated_at: string;
+}
 
 interface KeyStatsProps {
   books: Book[];
 }
 
 export const KeyStats: React.FC<KeyStatsProps> = ({ books }) => {
+  // Fetch streak settings
+  const { data: streakSettings } = useQuery<StreakSettings>({
+    queryKey: ['streakSettings'],
+    queryFn: async () => {
+      const response = await api.get('/user/streak-settings');
+      return response.data;
+    },
+    initialData: {
+      auth0_id: '',
+      excluded_days: [],
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    } as StreakSettings
+  });
+
+  // Helper function to check if a date should be counted for streak
+  const shouldCountDate = React.useCallback((date: Date) => {
+    const dayOfWeek = date.getDay(); // 0 = Sunday, 6 = Saturday
+    return !streakSettings.excluded_days.includes(dayOfWeek);
+  }, [streakSettings.excluded_days]);
+
+  // Helper function to get next countable date
+  const getNextCountableDate = React.useCallback((date: Date) => {
+    const nextDate = new Date(date);
+    nextDate.setDate(nextDate.getDate() + 1);
+    while (!shouldCountDate(nextDate)) {
+      nextDate.setDate(nextDate.getDate() + 1);
+    }
+    return nextDate;
+  }, [shouldCountDate]);
+
+  // Helper function to get previous countable date
+  const getPreviousCountableDate = React.useCallback((date: Date) => {
+    const prevDate = new Date(date);
+    prevDate.setDate(prevDate.getDate() - 1);
+    while (!shouldCountDate(prevDate)) {
+      prevDate.setDate(prevDate.getDate() - 1);
+    }
+    return prevDate;
+  }, [shouldCountDate]);
+
   // Get completed books sorted by completion date
   const completedBooks = React.useMemo(() => {
     return books
@@ -38,7 +89,17 @@ export const KeyStats: React.FC<KeyStatsProps> = ({ books }) => {
 
     // Check if there's been any reading activity in the last week
     const mostRecentDate = readingPeriods[0].end;
-    const daysSinceLastActivity = Math.floor((new Date().getTime() - mostRecentDate.getTime()) / (1000 * 60 * 60 * 24));
+    let daysSinceLastActivity = 0;
+    let currentDate = new Date();
+    
+    // Count only non-excluded days
+    while (currentDate > mostRecentDate) {
+      if (shouldCountDate(currentDate)) {
+        daysSinceLastActivity++;
+      }
+      currentDate.setDate(currentDate.getDate() - 1);
+    }
+    
     if (daysSinceLastActivity > 7) return 0;
 
     // Find the most recent continuous reading streak
@@ -46,8 +107,13 @@ export const KeyStats: React.FC<KeyStatsProps> = ({ books }) => {
     let streakStartDate = new Date(streakEndDate);
     let hasActiveDay = false;
 
-    // Check each day going backwards
+    // Check each countable day going backwards
     while (true) {
+      if (!shouldCountDate(streakStartDate)) {
+        streakStartDate = getPreviousCountableDate(streakStartDate);
+        continue;
+      }
+
       // Check if this day had any reading activity
       hasActiveDay = false;
       for (const period of readingPeriods) {
@@ -59,17 +125,92 @@ export const KeyStats: React.FC<KeyStatsProps> = ({ books }) => {
 
       if (!hasActiveDay) break;
 
-      // Move to previous day
-      streakStartDate.setDate(streakStartDate.getDate() - 1);
+      // Move to previous countable day
+      streakStartDate = getPreviousCountableDate(streakStartDate);
     }
 
     // Add one day back since we went one day too far back
-    streakStartDate.setDate(streakStartDate.getDate() + 1);
+    streakStartDate = getNextCountableDate(streakStartDate);
 
-    // Calculate streak length
-    const streakDays = Math.floor((streakEndDate.getTime() - streakStartDate.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+    // Calculate streak length (counting only non-excluded days)
+    let streakDays = 0;
+    currentDate = new Date(streakStartDate);
+    while (currentDate <= streakEndDate) {
+      if (shouldCountDate(currentDate)) {
+        streakDays++;
+      }
+      currentDate.setDate(currentDate.getDate() + 1);
+    }
+    
     return streakDays;
-  }, [books]);
+  }, [books, shouldCountDate, getPreviousCountableDate, getNextCountableDate]);
+
+  // Calculate longest streak
+  const longestStreak = React.useMemo(() => {
+    const readingPeriods = books
+      .filter(book => book.started_at)
+      .map(book => {
+        const start = new Date(book.started_at!);
+        const end = book.finished_at ? new Date(book.finished_at) : new Date();
+        return { start, end };
+      })
+      .sort((a, b) => a.start.getTime() - b.start.getTime());
+
+    if (readingPeriods.length === 0) return 0;
+
+    let maxStreak = 0;
+    let currentStreak = 0;
+    let currentDate = new Date(readingPeriods[0].start);
+    const lastDate = new Date(readingPeriods[readingPeriods.length - 1].end);
+
+    // Helper function to check if a date has active reading
+    const hasActiveReading = (date: Date) => {
+      for (const period of readingPeriods) {
+        if (date >= period.start && date <= period.end) {
+          return true;
+        }
+      }
+      return false;
+    };
+
+    // Helper function to find next reading start after a date
+    const findNextReadingStart = (date: Date) => {
+      for (const period of readingPeriods) {
+        if (period.start > date) {
+          return period.start;
+        }
+      }
+      return null;
+    };
+
+    while (currentDate <= lastDate) {
+      if (!shouldCountDate(currentDate)) {
+        currentDate.setDate(currentDate.getDate() + 1);
+        continue;
+      }
+
+      if (hasActiveReading(currentDate)) {
+        currentStreak++;
+        maxStreak = Math.max(maxStreak, currentStreak);
+      } else {
+        // Check if there's a next reading period that would maintain the streak
+        const nextDate = getNextCountableDate(currentDate);
+        const nextReadingStart = findNextReadingStart(currentDate);
+        
+        if (nextReadingStart && nextReadingStart <= nextDate) {
+          // The next reading starts immediately after this one (considering excluded days)
+          currentStreak++;
+          maxStreak = Math.max(maxStreak, currentStreak);
+        } else {
+          currentStreak = 0;
+        }
+      }
+
+      currentDate.setDate(currentDate.getDate() + 1);
+    }
+
+    return maxStreak;
+  }, [books, shouldCountDate, getNextCountableDate]);
 
   // Calculate reading speed (pages per day) - use last 30 days
   const readingSpeed = React.useMemo(() => {
@@ -105,46 +246,6 @@ export const KeyStats: React.FC<KeyStatsProps> = ({ books }) => {
     return startedCount > 0 ? Math.round((completedCount / startedCount) * 100) : 0;
   }, [books]);
 
-  // Calculate longest streak
-  const longestStreak = React.useMemo(() => {
-    const readingPeriods = books
-      .filter(book => book.started_at)
-      .map(book => {
-        const start = new Date(book.started_at!);
-        const end = book.finished_at ? new Date(book.finished_at) : new Date();
-        return { start, end };
-      })
-      .sort((a, b) => a.start.getTime() - b.start.getTime());
-
-    if (readingPeriods.length === 0) return 0;
-
-    let maxStreak = 0;
-    let currentStreak = 0;
-    let currentDate = new Date(readingPeriods[0].start);
-    const lastDate = new Date(readingPeriods[readingPeriods.length - 1].end);
-
-    while (currentDate <= lastDate) {
-      let hasActiveBook = false;
-      for (const period of readingPeriods) {
-        if (currentDate >= period.start && currentDate <= period.end) {
-          hasActiveBook = true;
-          break;
-        }
-      }
-
-      if (hasActiveBook) {
-        currentStreak++;
-        maxStreak = Math.max(maxStreak, currentStreak);
-      } else {
-        currentStreak = 0;
-      }
-
-      currentDate.setDate(currentDate.getDate() + 1);
-    }
-
-    return maxStreak;
-  }, [books]);
-
   // Calculate average reading time per day
   const averageReadingTime = React.useMemo(() => {
     const completedWithDates = completedBooks.filter(book => book.started_at);
@@ -153,11 +254,19 @@ export const KeyStats: React.FC<KeyStatsProps> = ({ books }) => {
     const totalReadingDays = completedWithDates.reduce((sum, book) => {
       const start = new Date(book.started_at!);
       const end = new Date(book.finished_at!);
-      return sum + Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
+      let days = 0;
+      let currentDate = new Date(start);
+      while (currentDate <= end) {
+        if (shouldCountDate(currentDate)) {
+          days++;
+        }
+        currentDate.setDate(currentDate.getDate() + 1);
+      }
+      return sum + days;
     }, 0);
 
     return Math.round(totalReadingDays / completedWithDates.length);
-  }, [completedBooks]);
+  }, [completedBooks, shouldCountDate]);
 
   return (
     <FeatureSection title="Key Stats" icon="📊">

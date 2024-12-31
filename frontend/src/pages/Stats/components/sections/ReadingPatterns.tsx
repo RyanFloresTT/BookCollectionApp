@@ -13,11 +13,11 @@ interface ReadingPatternsProps {
 }
 
 export const ReadingPatterns: React.FC<ReadingPatternsProps> = ({ books }) => {
-  // Get completed books sorted by completion date
+  // Get completed books sorted by completion date (oldest first for sprint calculation)
   const completedBooks = React.useMemo(() => {
     return books
       .filter(book => book.finished_at)
-      .sort((a, b) => new Date(b.finished_at!).getTime() - new Date(a.finished_at!).getTime());
+      .sort((a, b) => new Date(a.finished_at!).getTime() - new Date(b.finished_at!).getTime());
   }, [books]);
 
   // Calculate peak reading season
@@ -59,29 +59,54 @@ export const ReadingPatterns: React.FC<ReadingPatternsProps> = ({ books }) => {
     return recentBooks.length > 0 ? Math.round((recentBooks.length / 3) * 10) / 10 : 0;
   }, [completedBooks]);
 
-  // Find best reading sprint (most books in a 14-day period)
+  // Find best reading sprint (most books in shortest period)
   const bestSprint = React.useMemo(() => {
-    if (completedBooks.length < 2) return { books: 0, days: 14 };
+    if (completedBooks.length < 2) return { books: 0, days: 0 };
 
-    let maxBooks = 0;
-    const sprintDays = 14;
+    let bestResult = { books: 0, days: Infinity };
 
-    // Check each book as a potential end of a sprint
-    completedBooks.forEach((endBook, i) => {
-      const endDate = new Date(endBook.finished_at!);
-      const startDate = new Date(endDate);
-      startDate.setDate(startDate.getDate() - sprintDays);
+    // For each book as a potential sprint start
+    for (let i = 0; i < completedBooks.length; i++) {
+      const firstBook = completedBooks[i];
+      const sprintStartDate = new Date(firstBook.started_at!);
 
-      // Count books completed within this sprint window
-      const booksInSprint = completedBooks.filter(book => {
-        const completedDate = new Date(book.finished_at!);
-        return completedDate >= startDate && completedDate <= endDate;
-      }).length;
+      // For each subsequent book as a potential sprint end
+      for (let j = i; j < completedBooks.length; j++) {
+        const lastBook = completedBooks[j];
+        const sprintEndDate = new Date(lastBook.finished_at!);
+        
+        // Calculate days between start of first book and finish of last book (inclusive)
+        const days = Math.ceil((sprintEndDate.getTime() - sprintStartDate.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+        const booksInPeriod = j - i + 1;
 
-      maxBooks = Math.max(maxBooks, booksInSprint);
-    });
+        // Only consider this sprint if:
+        // 1. All books in between have start dates within the sprint period
+        // 2. All books in between have finish dates within the sprint period
+        let isValidSprint = true;
+        for (let k = i + 1; k < j; k++) {
+          const middleBook = completedBooks[k];
+          const bookStart = new Date(middleBook.started_at!);
+          const bookEnd = new Date(middleBook.finished_at!);
+          
+          if (bookStart < sprintStartDate || bookEnd > sprintEndDate) {
+            isValidSprint = false;
+            break;
+          }
+        }
 
-    return { books: maxBooks, days: sprintDays };
+        if (!isValidSprint) continue;
+
+        // Update best result if:
+        // 1. We found more books in a period, or
+        // 2. We found the same number of books in a shorter period
+        if (booksInPeriod > bestResult.books || 
+            (booksInPeriod === bestResult.books && days < bestResult.days)) {
+          bestResult = { books: booksInPeriod, days };
+        }
+      }
+    }
+
+    return bestResult;
   }, [completedBooks]);
 
   // Calculate preferred reading days

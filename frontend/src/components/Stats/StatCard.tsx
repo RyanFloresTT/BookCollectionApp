@@ -37,11 +37,16 @@ export const StatCard: React.FC<StatCardProps> = ({ title, value, subtitle, icon
         <Box
           sx={{
             position: 'absolute',
-            right: -20,
-            top: -20,
-            opacity: 0.2,
-            transform: 'scale(3)',
+            right: '10%',
+            top: '10%',
+            opacity: 0.15,
+            transform: 'scale(2)',
             color: 'white',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            width: '40px',
+            height: '40px',
           }}
         >
           {icon}
