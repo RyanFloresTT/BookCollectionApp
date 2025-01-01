@@ -57,33 +57,38 @@ func SetupRouter(r *chi.Mux, db *gorm.DB) {
 	streakSettingsController := controllers.NewStreakSettingsController(db)
 	goalHistoryController := controllers.NewGoalHistoryController(db)
 
+	// Create auth middleware
+	authMiddleware := middleware.NewAuthMiddleware(db)
+
 	// Routes
 	r.Route("/api/books", func(r chi.Router) {
-		r.With(middleware.AuthMiddleware).Get("/collection", bookController.GetUserBooks)
-		r.Get("/search", middleware.CountSearchMiddleware(http.HandlerFunc(bookController.SearchBooks)).ServeHTTP)
-		r.With(middleware.AuthMiddleware).Post("/add", bookController.AddBook)
-		r.With(middleware.AuthMiddleware).Delete("/{id}", bookController.DeleteBook)
-		r.With(middleware.AuthMiddleware).Patch("/{id}", bookController.UpdateBook)
+		r.Use(authMiddleware.Handler)
+		r.Get("/collection", bookController.GetUserBooks)
+		r.Post("/add", bookController.AddBook)
+		r.Delete("/{id}", bookController.DeleteBook)
+		r.Patch("/{id}", bookController.UpdateBook)
 	})
 
 	// User routes
 	r.Route("/api/user", func(r chi.Router) {
-		r.With(middleware.AuthMiddleware).Get("/reading-goal", bookController.GetReadingGoal)
-		r.With(middleware.AuthMiddleware).Put("/reading-goal", bookController.UpdateReadingGoal)
+		r.Use(authMiddleware.Handler)
+		r.Get("/reading-goal", bookController.GetReadingGoal)
+		r.Put("/reading-goal", bookController.UpdateReadingGoal)
 
-		r.With(middleware.AuthMiddleware).Get("/streak-settings", streakSettingsController.GetStreakSettings)
-		r.With(middleware.AuthMiddleware).Post("/streak-settings", streakSettingsController.UpdateStreakSettings)
+		r.Get("/streak-settings", streakSettingsController.GetStreakSettings)
+		r.Post("/streak-settings", streakSettingsController.UpdateStreakSettings)
 
 		// Goal History routes
-		r.With(middleware.AuthMiddleware).Post("/goal-history", goalHistoryController.RecordGoalCompletion)
-		r.With(middleware.AuthMiddleware).Get("/goal-stats", goalHistoryController.GetGoalStats)
+		r.Post("/goal-history", goalHistoryController.RecordGoalCompletion)
+		r.Get("/goal-stats", goalHistoryController.GetGoalStats)
 	})
 
 	// Update checkout routes to use subscription controller
 	r.Route("/api/checkout", func(r chi.Router) {
-		r.With(middleware.AuthMiddleware).Post("/session", subscriptionController.CreateCheckoutSession)
-		r.With(middleware.AuthMiddleware).Post("/portal-session", subscriptionController.CreatePortalSession)
-		r.With(middleware.AuthMiddleware).Get("/subscription-status", subscriptionController.GetSubscriptionStatus)
+		r.Use(authMiddleware.Handler)
+		r.Post("/session", subscriptionController.CreateCheckoutSession)
+		r.Post("/portal-session", subscriptionController.CreatePortalSession)
+		r.Get("/subscription-status", subscriptionController.GetSubscriptionStatus)
 		r.Post("/webhook", subscriptionController.HandleWebhook)
 	})
 }

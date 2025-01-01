@@ -7,14 +7,26 @@ import (
 	"strings"
 	"time"
 
+	"github.com/RyanFloresTT/Book-Collection-Backend/models"
 	"github.com/golang-jwt/jwt/v5"
+	"gorm.io/gorm"
 )
 
 type contextKey string
 
 var UserIDKey = contextKey("userID")
 
-func AuthMiddleware(next http.Handler) http.Handler {
+type AuthMiddleware struct {
+	DB *gorm.DB
+}
+
+func NewAuthMiddleware(db *gorm.DB) *AuthMiddleware {
+	return &AuthMiddleware{
+		DB: db,
+	}
+}
+
+func (am *AuthMiddleware) Handler(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		authHeader := r.Header.Get("Authorization")
 		if authHeader == "" {
@@ -44,6 +56,28 @@ func AuthMiddleware(next http.Handler) http.Handler {
 		if claims, ok := token.Claims.(jwt.MapClaims); ok && token.Valid {
 			if sub, ok := claims["sub"].(string); ok {
 				fmt.Printf("Auth Middleware - Successfully validated token for user: %s\n", sub)
+
+				// Ensure user exists in database
+				var user models.User
+				result := am.DB.Where("auth0_id = ?", sub).First(&user)
+				if result.Error == gorm.ErrRecordNotFound {
+					// Create new user
+					email, _ := claims["email"].(string)
+					user = models.User{
+						Auth0ID: sub,
+						Email:   email,
+					}
+					if err := am.DB.Create(&user).Error; err != nil {
+						fmt.Printf("Auth Middleware - Error creating user: %v\n", err)
+						http.Error(w, "Error creating user", http.StatusInternalServerError)
+						return
+					}
+				} else if result.Error != nil {
+					fmt.Printf("Auth Middleware - Error checking user: %v\n", result.Error)
+					http.Error(w, "Error checking user", http.StatusInternalServerError)
+					return
+				}
+
 				ctx := context.WithValue(r.Context(), UserIDKey, sub)
 				next.ServeHTTP(w, r.WithContext(ctx))
 				return
