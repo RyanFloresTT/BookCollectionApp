@@ -129,10 +129,17 @@ func (s *bookService) FindBookByTitleAndUser(ctx context.Context, title string, 
 }
 
 func (s *bookService) RestoreBook(ctx context.Context, bookID string) error {
-	err := s.DB.Model(&models.Book{}).Where("id = ?", bookID).Update("deleted_at", nil).Error
-	if err != nil {
+	// First find the deleted book
+	var book models.Book
+	if err := s.DB.Unscoped().Where("id = ?", bookID).First(&book).Error; err != nil {
+		return fmt.Errorf("failed to find book: %v", err)
+	}
+
+	// Then restore it by clearing DeletedAt
+	if err := s.DB.Model(&book).Unscoped().Update("deleted_at", nil).Error; err != nil {
 		return fmt.Errorf("failed to restore book: %v", err)
 	}
+
 	return nil
 }
 
