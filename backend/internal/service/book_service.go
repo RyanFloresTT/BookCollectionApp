@@ -97,17 +97,17 @@ func (s *bookService) GetOrCreateUser(ctx context.Context, auth0ID string) (*mod
 // DeleteBook removes a book from the user's collection
 func (s *bookService) DeleteBook(ctx context.Context, userID string, bookID uint) error {
 	var user models.User
-
-	err := s.DB.Where("auth0_id = ?", userID).First(&user).Error
-	if err != nil {
+	if err := s.DB.Where("auth0_id = ?", userID).First(&user).Error; err != nil {
 		return fmt.Errorf("failed to find user: %v", err)
 	}
 
-	err = s.DB.Where("id = ? AND user_id = ?", bookID, user.ID).Delete(&models.Book{}).Error
-	if err != nil {
-		return fmt.Errorf("failed to delete book: %v", err)
+	result := s.DB.Where("id = ? AND user_id = ?", bookID, user.ID).Delete(&models.Book{})
+	if result.Error != nil {
+		return result.Error
 	}
-
+	if result.RowsAffected == 0 {
+		return gorm.ErrRecordNotFound
+	}
 	return nil
 }
 

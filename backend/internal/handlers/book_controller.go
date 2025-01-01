@@ -45,6 +45,12 @@ func (bc *BookController) AddBook(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Validate required fields
+	if req.Title == "" || req.Author == "" {
+		http.Error(w, "Title and Author are required", http.StatusBadRequest)
+		return
+	}
+
 	// Get user ID from context
 	userID, ok := r.Context().Value(middleware.UserIDKey).(string)
 	if !ok {
@@ -224,6 +230,17 @@ func (bc *BookController) DeleteBook(w http.ResponseWriter, r *http.Request) {
 	}
 
 	fmt.Printf("Deleting book with ID: %s\n", bookID)
+
+	// First check if the book exists
+	_, err = bc.BookService.GetBookByID(r.Context(), userID, bookID)
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			http.Error(w, "Book not found", http.StatusNotFound)
+			return
+		}
+		http.Error(w, fmt.Sprintf("Failed to fetch book: %v", err), http.StatusInternalServerError)
+		return
+	}
 
 	// Call the service to delete the book
 	err = bc.BookService.DeleteBook(r.Context(), userID, uint(bookIDUint))
