@@ -46,6 +46,16 @@ func InitializeDatabase() *gorm.DB {
 		log.Fatalf("Failed to auto-migrate streak settings model: %v", err)
 	}
 
+	err = db.AutoMigrate(&models.GoalHistory{})
+	if err != nil {
+		log.Fatalf("Failed to auto-migrate goal history model: %v", err)
+	}
+
+	err = db.AutoMigrate(&models.GoalStats{})
+	if err != nil {
+		log.Fatalf("Failed to auto-migrate goal stats model: %v", err)
+	}
+
 	log.Println("Database connected and models migrated")
 	return db
 }

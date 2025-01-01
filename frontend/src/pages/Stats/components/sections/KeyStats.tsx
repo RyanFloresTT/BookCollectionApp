@@ -12,12 +12,25 @@ import AccessTimeIcon from '@mui/icons-material/AccessTime';
 import { useQuery } from '@tanstack/react-query';
 import axios from 'axios';
 import api from '../../../../services/api';
+import { useAuth0 } from '@auth0/auth0-react';
 
 interface StreakSettings {
   auth0_id: string;
   excluded_days: number[];
+  goal_interval: string;
   created_at: string;
   updated_at: string;
+}
+
+interface GoalStats {
+  current_goal_streak: number;
+  longest_goal_streak: number;
+  total_goals_set: number;
+  total_goals_met: number;
+  goal_completion_rate: number;
+  average_overshoot: number;
+  best_interval: string;
+  last_goal_met: string | null;
 }
 
 interface KeyStatsProps {
@@ -25,6 +38,8 @@ interface KeyStatsProps {
 }
 
 export const KeyStats: React.FC<KeyStatsProps> = ({ books }) => {
+  const { getAccessTokenSilently } = useAuth0();
+
   // Fetch streak settings
   const { data: streakSettings } = useQuery<StreakSettings>({
     queryKey: ['streakSettings'],
@@ -35,9 +50,19 @@ export const KeyStats: React.FC<KeyStatsProps> = ({ books }) => {
     initialData: {
       auth0_id: '',
       excluded_days: [],
+      goal_interval: 'yearly',
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString()
     } as StreakSettings
+  });
+
+  // Fetch goal stats using React Query
+  const { data: goalStats } = useQuery<GoalStats>({
+    queryKey: ['goalStats'],
+    queryFn: async () => {
+      const response = await api.get('/user/goal-stats');
+      return response.data;
+    }
   });
 
   // Helper function to check if a date should be counted for streak
@@ -339,4 +364,4 @@ export const KeyStats: React.FC<KeyStatsProps> = ({ books }) => {
       </Grid2>
     </FeatureSection>
   );
-}; 
+};

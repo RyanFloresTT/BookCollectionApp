@@ -1,10 +1,10 @@
 package controllers
 
 import (
-	"encoding/json"
 	"net/http"
 	"time"
 	"fmt"
+	"encoding/json"
 
 	"github.com/RyanFloresTT/Book-Collection-Backend/models"
 	"github.com/RyanFloresTT/Book-Collection-Backend/middleware"
@@ -20,40 +20,35 @@ func NewStreakSettingsController(db *gorm.DB) *StreakSettingsController {
 }
 
 func (c *StreakSettingsController) GetStreakSettings(w http.ResponseWriter, r *http.Request) {
-	userID := r.Context().Value(middleware.UserIDKey).(string)
-
-	var settings models.StreakSettings
-
-	// Debug: Print the userID we're searching for
-	fmt.Printf("GetStreakSettings - Searching for settings with auth0_id: %s\n", userID)
-
-	// Simplified query without ORDER BY
-	if err := c.db.Where("auth0_id = ?", userID).First(&settings).Error; err != nil {
-		if err == gorm.ErrRecordNotFound {
-			fmt.Printf("GetStreakSettings - No settings found for user %s, returning defaults\n", userID)
-			// Return default settings if none exist - this is an expected case
-			defaultSettings := models.StreakSettings{
-					Auth0ID:      userID,
-					ExcludedDays: models.IntArray{}, // Initialize as empty array
-					CreatedAt:    time.Now(),
-					UpdatedAt:    time.Now(),
-			}
-			w.Header().Set("Content-Type", "application/json")
-			json.NewEncoder(w).Encode(defaultSettings)
-			return
-		}
-		// Only log and return error for unexpected errors
-		fmt.Printf("GetStreakSettings - Unexpected error for user %s: %v\n", userID, err)
-		http.Error(w, "Error fetching streak settings", http.StatusInternalServerError)
+	// Get user ID from context
+	userID, ok := r.Context().Value(middleware.UserIDKey).(string)
+	if !ok {
+		http.Error(w, "User not found in context", http.StatusUnauthorized)
 		return
 	}
 
-	// Debug: Print the settings we found
-	fmt.Printf("GetStreakSettings - Found settings for user %s: %+v\n", userID, settings)
+	fmt.Printf("GetStreakSettings - Searching for settings with auth0_id: %s\n", userID)
 
-	// Ensure ExcludedDays is never nil
-	if settings.ExcludedDays == nil {
-		settings.ExcludedDays = models.IntArray{}
+	var settings models.StreakSettings
+	err := c.db.Where("auth0_id = ?", userID).First(&settings).Error
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			fmt.Printf("GetStreakSettings - No settings found for user %s, creating defaults\n", userID)
+			// Create default settings
+			settings = models.StreakSettings{
+				Auth0ID:      userID,
+				GoalInterval: "yearly",
+				CreatedAt:    time.Now(),
+				UpdatedAt:    time.Now(),
+			}
+			if err := c.db.Create(&settings).Error; err != nil {
+				http.Error(w, fmt.Sprintf("Failed to create default settings: %v", err), http.StatusInternalServerError)
+				return
+			}
+		} else {
+			http.Error(w, fmt.Sprintf("Failed to fetch streak settings: %v", err), http.StatusInternalServerError)
+			return
+		}
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -64,15 +59,24 @@ func (c *StreakSettingsController) UpdateStreakSettings(w http.ResponseWriter, r
 	userID := r.Context().Value(middleware.UserIDKey).(string)
 
 	var input struct {
-		ExcludedDays []int `json:"excluded_days"`
+		ExcludedDays []int  `json:"excluded_days"`
+		GoalInterval string `json:"goal_interval"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
 		http.Error(w, "Invalid request body", http.StatusBadRequest)
 		return
 	}
 
+	// Validate goal interval
+	validIntervals := map[string]bool{"daily": true, "weekly": true, "monthly": true, "yearly": true}
+	if input.GoalInterval != "" && !validIntervals[input.GoalInterval] {
+		http.Error(w, "Invalid goal interval", http.StatusBadRequest)
+		return
+	}
+
 	// Debug: Print the update we're trying to make
-	fmt.Printf("UpdateStreakSettings - Updating settings for user %s with days: %v\n", userID, input.ExcludedDays)
+	fmt.Printf("UpdateStreakSettings - Updating settings for user %s with days: %v, interval: %s\n", 
+		userID, input.ExcludedDays, input.GoalInterval)
 
 	// Ensure input.ExcludedDays is never nil
 	if input.ExcludedDays == nil {
@@ -90,6 +94,9 @@ func (c *StreakSettingsController) UpdateStreakSettings(w http.ResponseWriter, r
 	// Update or create settings
 	settings.Auth0ID = userID
 	settings.ExcludedDays = models.IntArray(input.ExcludedDays)
+	if input.GoalInterval != "" {
+		settings.GoalInterval = input.GoalInterval
+	}
 	settings.UpdatedAt = time.Now()
 	if result.Error == gorm.ErrRecordNotFound {
 		settings.CreatedAt = time.Now()

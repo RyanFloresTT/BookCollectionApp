@@ -3,7 +3,7 @@ package models
 import (
 	"database/sql/driver"
 	"encoding/json"
-	"fmt"
+	"errors"
 	"time"
 )
 
@@ -29,7 +29,7 @@ func (a *IntArray) Scan(value interface{}) error {
 		}
 		return json.Unmarshal([]byte(v), a)
 	default:
-		return fmt.Errorf("unsupported type for IntArray: %T", value)
+		return errors.New("unsupported type for IntArray")
 	}
 }
 
@@ -41,8 +41,10 @@ func (a IntArray) Value() (driver.Value, error) {
 }
 
 type StreakSettings struct {
-	Auth0ID      string    `json:"auth0_id" gorm:"column:auth0_id;primaryKey"`
+	ID           uint      `json:"id" gorm:"primaryKey"`
+	Auth0ID      string    `json:"auth0_id" gorm:"column:auth0_id;uniqueIndex"`
 	ExcludedDays IntArray  `json:"excluded_days" gorm:"type:jsonb;default:'[]'"`
+	GoalInterval string    `json:"goal_interval" gorm:"default:yearly"`
 	CreatedAt    time.Time `json:"created_at"`
 	UpdatedAt    time.Time `json:"updated_at"`
-} 
+}
