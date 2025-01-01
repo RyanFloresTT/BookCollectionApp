@@ -1,5 +1,5 @@
 server {
-    listen 80;
+    listen ${PORT:-80};
     
     # Add error logging
     error_log /dev/stderr debug;
@@ -21,7 +21,7 @@ server {
         # Add more detailed error logging
         error_log /dev/stderr debug;
         
-        proxy_pass "${BACKEND_URL}";
+        proxy_pass "${BACKEND_URL}/";
         proxy_http_version 1.1;
         proxy_set_header Upgrade $http_upgrade;
         proxy_set_header Connection 'upgrade';
