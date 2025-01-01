@@ -20,6 +20,11 @@ func InitializeDatabase() *gorm.DB {
 		log.Fatalf("Failed to connect to database: %v", err)
 	}
 
+	// Drop streak_settings table to handle type change
+	if err := db.Exec("DROP TABLE IF EXISTS streak_settings").Error; err != nil {
+		log.Printf("Warning: Failed to drop streak_settings table: %v", err)
+	}
+
 	// Auto-migrate models
 	err = db.AutoMigrate(&models.Book{})
 	if err != nil {
@@ -34,6 +39,21 @@ func InitializeDatabase() *gorm.DB {
 	err = db.AutoMigrate(&models.Subscription{})
 	if err != nil {
 		log.Fatalf("Failed to auto-migrate subscription model: %v", err)
+	}
+
+	err = db.AutoMigrate(&models.StreakSettings{})
+	if err != nil {
+		log.Fatalf("Failed to auto-migrate streak settings model: %v", err)
+	}
+
+	err = db.AutoMigrate(&models.GoalHistory{})
+	if err != nil {
+		log.Fatalf("Failed to auto-migrate goal history model: %v", err)
+	}
+
+	err = db.AutoMigrate(&models.GoalStats{})
+	if err != nil {
+		log.Fatalf("Failed to auto-migrate goal stats model: %v", err)
 	}
 
 	log.Println("Database connected and models migrated")

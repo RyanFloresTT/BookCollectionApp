@@ -10,27 +10,44 @@ import (
 	"time"
 
 	"github.com/RyanFloresTT/Book-Collection-Backend/models"
-	"github.com/go-redis/redis/v8"
 	"gorm.io/gorm"
 )
 
-type BookService struct {
-	DB  *gorm.DB
-	Rdb *redis.Client
+type BookService interface {
+	SearchBooks(query string) ([]models.Book, error)
+	AddBook(ctx context.Context, userID string, book models.Book) error
+	GetUserBooks(ctx context.Context, userID string) ([]models.Book, error)
+	DeleteBook(ctx context.Context, userID string, bookID string) error
+	UpdateBook(ctx context.Context, userID string, bookID string, book models.Book) error
+	GetOrCreateUser(ctx context.Context, auth0ID string) (*models.User, error)
+	FindBookByTitleAndUser(ctx context.Context, title string, userID string) (*models.Book, error)
+	RestoreBook(ctx context.Context, bookID string) error
+	UpdateReadingGoal(ctx context.Context, userID string, goal int) error
+	GetReadingGoal(ctx context.Context, userID string) (int, error)
+	GetBookByID(ctx context.Context, userID string, bookID string) (*models.Book, error)
+	GetDB() *gorm.DB
+}
+
+type bookService struct {
+	DB *gorm.DB
 }
 
 func NewBookService(db *gorm.DB) BookService {
-	return BookService{
+	return &bookService{
 		DB: db,
 	}
 }
 
+func (s *bookService) GetDB() *gorm.DB {
+	return s.DB
+}
+
 // SearchBooks queries Google Books API for books matching the query
-func (s *BookService) SearchBooks(query string) ([]models.Book, error) {
+func (s *bookService) SearchBooks(query string) ([]models.Book, error) {
 	return s.fetchGoogleBooks(query)
 }
 
-func (s *BookService) fetchGoogleBooks(query string) ([]models.Book, error) {
+func (s *bookService) fetchGoogleBooks(query string) ([]models.Book, error) {
 	var books []models.Book
 	apiKey := os.Getenv("GOOGLE_BOOKS_API_KEY")
 	query = strings.ReplaceAll(query, " ", "+")
@@ -86,7 +103,7 @@ func (s *BookService) fetchGoogleBooks(query string) ([]models.Book, error) {
 	return books, nil
 }
 
-func (s *BookService) fetchOpenLibraryBooks(query string) ([]models.Book, error) {
+func (s *bookService) fetchOpenLibraryBooks(query string) ([]models.Book, error) {
 	var books []models.Book
 	query = strings.ReplaceAll(query, " ", "+")
 	url := fmt.Sprintf("https://openlibrary.org/search.json?q=%s&fields=key,title,author_name,cover_i,first_sentence,first_publish_year,place,time,person,ratings_average,number_of_pages_median&language=eng&limit=10&offset=0&sort=rating", query)
@@ -135,7 +152,7 @@ func (s *BookService) fetchOpenLibraryBooks(query string) ([]models.Book, error)
 }
 
 // SearchUserBooks searches a user's personal book collection in the local database
-func (s *BookService) GetUserBooks(ctx context.Context, auth0ID string) ([]models.Book, error) {
+func (s *bookService) GetUserBooks(ctx context.Context, auth0ID string) ([]models.Book, error) {
 	var user models.User
 
 	// Preload only books without a deleted_at value
@@ -147,9 +164,14 @@ func (s *BookService) GetUserBooks(ctx context.Context, auth0ID string) ([]model
 }
 
 // AddBook adds a book to the user's collection
-func (s *BookService) AddBook(ctx context.Context, userID uint, book models.Book) error {
+func (s *bookService) AddBook(ctx context.Context, userID string, book models.Book) error {
+	var user models.User
+	if err := s.DB.Where("auth0_id = ?", userID).First(&user).Error; err != nil {
+		return fmt.Errorf("failed to find user: %v", err)
+	}
+
 	// Set the UserID to associate the book with the user
-	book.UserID = userID
+	book.UserID = user.ID
 
 	// Insert the book into the database
 	err := s.DB.Create(&book).Error
@@ -161,7 +183,7 @@ func (s *BookService) AddBook(ctx context.Context, userID uint, book models.Book
 }
 
 // GetOrCreateUser finds or creates a user by their Auth0 ID
-func (s *BookService) GetOrCreateUser(ctx context.Context, auth0ID string) (*models.User, error) {
+func (s *bookService) GetOrCreateUser(ctx context.Context, auth0ID string) (*models.User, error) {
 	var user models.User
 	err := s.DB.Where("auth0_id = ?", auth0ID).First(&user).Error
 
@@ -188,7 +210,7 @@ func (s *BookService) GetOrCreateUser(ctx context.Context, auth0ID string) (*mod
 }
 
 // DeleteBook removes a book from the user's collection
-func (s *BookService) DeleteBook(ctx context.Context, userID string, bookID string) error {
+func (s *bookService) DeleteBook(ctx context.Context, userID string, bookID string) error {
 	var user models.User
 
 	// Check if the user exists
@@ -206,9 +228,14 @@ func (s *BookService) DeleteBook(ctx context.Context, userID string, bookID stri
 	return nil
 }
 
-func (s *BookService) FindBookByTitleAndUser(ctx context.Context, title string, userID uint) (*models.Book, error) {
+func (s *bookService) FindBookByTitleAndUser(ctx context.Context, title string, userID string) (*models.Book, error) {
+	var user models.User
+	if err := s.DB.Where("auth0_id = ?", userID).First(&user).Error; err != nil {
+		return nil, fmt.Errorf("failed to find user: %v", err)
+	}
+
 	var book models.Book
-	err := s.DB.Where("title = ? AND user_id = ?", title, userID).First(&book).Error
+	err := s.DB.Where("title = ? AND user_id = ?", title, user.ID).First(&book).Error
 	if err != nil {
 		if err == gorm.ErrRecordNotFound {
 			return nil, nil
@@ -218,7 +245,7 @@ func (s *BookService) FindBookByTitleAndUser(ctx context.Context, title string, 
 	return &book, nil
 }
 
-func (s *BookService) RestoreBook(ctx context.Context, bookID uint) error {
+func (s *bookService) RestoreBook(ctx context.Context, bookID string) error {
 	err := s.DB.Model(&models.Book{}).Where("id = ?", bookID).Update("deleted_at", nil).Error
 	if err != nil {
 		return fmt.Errorf("failed to restore book: %v", err)
@@ -227,7 +254,7 @@ func (s *BookService) RestoreBook(ctx context.Context, bookID uint) error {
 }
 
 // UpdateBook updates all book fields
-func (s *BookService) UpdateBook(ctx context.Context, userID string, bookID string, book models.Book) error {
+func (s *bookService) UpdateBook(ctx context.Context, userID string, bookID string, book models.Book) error {
 	var user models.User
 
 	// Check if the user exists
@@ -259,4 +286,50 @@ func (s *BookService) UpdateBook(ctx context.Context, userID string, bookID stri
 	}
 
 	return nil
+}
+
+// UpdateReadingGoal updates the user's reading goal
+func (s *bookService) UpdateReadingGoal(ctx context.Context, auth0ID string, readingGoal int) error {
+	var user models.User
+
+	// Find the user
+	err := s.DB.Where("auth0_id = ?", auth0ID).First(&user).Error
+	if err != nil {
+		return fmt.Errorf("failed to find user: %v", err)
+	}
+
+	// Update the reading goal
+	err = s.DB.Model(&user).Update("reading_goal", readingGoal).Error
+	if err != nil {
+		return fmt.Errorf("failed to update reading goal: %v", err)
+	}
+
+	return nil
+}
+
+// GetReadingGoal gets the user's reading goal
+func (s *bookService) GetReadingGoal(ctx context.Context, auth0ID string) (int, error) {
+	var user models.User
+
+	// Find the user
+	err := s.DB.Where("auth0_id = ?", auth0ID).First(&user).Error
+	if err != nil {
+		return 0, fmt.Errorf("failed to find user: %v", err)
+	}
+
+	return user.ReadingGoal, nil
+}
+
+// GetBookByID retrieves a book by its ID and user ID
+func (s *bookService) GetBookByID(ctx context.Context, userID string, bookID string) (*models.Book, error) {
+	var user models.User
+	if err := s.DB.Where("auth0_id = ?", userID).First(&user).Error; err != nil {
+		return nil, fmt.Errorf("failed to find user: %v", err)
+	}
+
+	var book models.Book
+	if err := s.DB.Where("id = ? AND user_id = ?", bookID, user.ID).First(&book).Error; err != nil {
+		return nil, err
+	}
+	return &book, nil
 }

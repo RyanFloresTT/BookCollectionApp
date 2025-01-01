@@ -18,10 +18,15 @@ func SetupRouter(r *chi.Mux, db *gorm.DB) {
 	r.Use(chimiddleware.Logger)
 	r.Use(chimiddleware.Recoverer)
 
-	// Initialize CORS
-	allowedOrigins := []string{"http://localhost:5000"}
-	if prodURL := os.Getenv("FRONTEND_URL"); prodURL != "" {
-		allowedOrigins = append(allowedOrigins, prodURL)
+	// Initialize CORS with development defaults
+	allowedOrigins := []string{"http://localhost:5000", "http://localhost:8080"}
+
+	// Add production URLs if environment variables are set
+	if frontendURL := os.Getenv("FRONTEND_URL"); frontendURL != "" {
+		allowedOrigins = append(allowedOrigins, frontendURL)
+	}
+	if backendURL := os.Getenv("BACKEND_URL"); backendURL != "" {
+		allowedOrigins = append(allowedOrigins, backendURL)
 	}
 
 	corsMiddleware := cors.New(cors.Options{
@@ -30,8 +35,8 @@ func SetupRouter(r *chi.Mux, db *gorm.DB) {
 		AllowedHeaders:   []string{"Authorization", "Content-Type", "Accept", "X-Requested-With"},
 		ExposedHeaders:   []string{"Link"},
 		AllowCredentials: true,
-		MaxAge:           300,  // Maximum value not ignored by any of major browsers
-		Debug:            true, // Enable debugging for testing, consider disabling in production
+		MaxAge:           300,
+		Debug:            os.Getenv("ENV") == "development", // Enable debug only in development
 	})
 	r.Use(corsMiddleware.Handler)
 
@@ -49,6 +54,8 @@ func SetupRouter(r *chi.Mux, db *gorm.DB) {
 	// Controllers
 	bookController := controllers.NewBookController(db)
 	subscriptionController := controllers.NewSubscriptionController(db)
+	streakSettingsController := controllers.NewStreakSettingsController(db)
+	goalHistoryController := controllers.NewGoalHistoryController(db)
 
 	// Routes
 	r.Route("/api/books", func(r chi.Router) {
@@ -57,6 +64,19 @@ func SetupRouter(r *chi.Mux, db *gorm.DB) {
 		r.With(middleware.AuthMiddleware).Post("/add", bookController.AddBook)
 		r.With(middleware.AuthMiddleware).Delete("/{id}", bookController.DeleteBook)
 		r.With(middleware.AuthMiddleware).Patch("/{id}", bookController.UpdateBook)
+	})
+
+	// User routes
+	r.Route("/api/user", func(r chi.Router) {
+		r.With(middleware.AuthMiddleware).Get("/reading-goal", bookController.GetReadingGoal)
+		r.With(middleware.AuthMiddleware).Put("/reading-goal", bookController.UpdateReadingGoal)
+
+		r.With(middleware.AuthMiddleware).Get("/streak-settings", streakSettingsController.GetStreakSettings)
+		r.With(middleware.AuthMiddleware).Post("/streak-settings", streakSettingsController.UpdateStreakSettings)
+
+		// Goal History routes
+		r.With(middleware.AuthMiddleware).Post("/goal-history", goalHistoryController.RecordGoalCompletion)
+		r.With(middleware.AuthMiddleware).Get("/goal-stats", goalHistoryController.GetGoalStats)
 	})
 
 	// Update checkout routes to use subscription controller

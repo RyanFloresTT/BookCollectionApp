@@ -8,4 +8,5 @@ type User struct {
 	Email            string `json:"email" gorm:"uniqueIndex;not null"`
 	Books            []Book `json:"books" gorm:"foreignKey:UserID"`
 	StripeCustomerID string `json:"stripeCustomerId"`
+	ReadingGoal      int    `json:"readingGoal" gorm:"default:0"`
 }

@@ -3,7 +3,7 @@ import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import ButtonAppBar from './components/AppBar/ButtonAppBar';
 import Home from './pages/Home/Home';
-import Stats from './pages/Stats/Stats';
+import { Stats } from './pages/Stats/Stats';
 import ProtectedRoute from './components/ProtectedRoute/ProtectedRoute';
 import Collection from './pages/Collection/Collection';
 import SubscriptionPage from './pages/Subscription/Subscription';
@@ -33,7 +33,7 @@ const queryClient = new QueryClient({
 const AuthSetup: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { getAccessTokenSilently, isAuthenticated } = useAuth0();
   const subscriptionStatus = useSubscriptionStatus();
-  const isPremium = subscriptionStatus === 'premium';
+  const isPremium = subscriptionStatus.isPremium;
 
   useEffect(() => {
     setAuthToken(async () => {
