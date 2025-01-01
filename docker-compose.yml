@@ -58,6 +58,7 @@ services:
         - REACT_APP_API_URL=${API_URL}
         - REACT_APP_STRIPE_PUBLIC_KEY=${STRIPE_PUBLIC_KEY}
         - BACKEND_URL=${BACKEND_URL}
+        - NGINX_PORT=${NGINX_PORT}
     image: trustytea/bookcollectionapp-frontend:latest
     ports:
       - "5000:80"

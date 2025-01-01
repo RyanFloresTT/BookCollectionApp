@@ -1,5 +1,5 @@
 server {
-    listen ${PORT:-80};
+    listen ${NGINX_PORT};
     
     # Add error logging
     error_log /dev/stderr debug;

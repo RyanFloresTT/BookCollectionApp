@@ -32,6 +32,7 @@ jobs:
             REACT_APP_API_URL=${{ secrets.API_URL }}
             REACT_APP_STRIPE_PUBLIC_KEY=${{ secrets.STRIPE_PUBLIC_KEY }}
             BACKEND_URL=${{ secrets.BACKEND_URL }}
+            NGINX_PORT=${{ secrets.NGINX_PORT }}
 
       - name: Build and push Backend
         uses: docker/build-push-action@v4

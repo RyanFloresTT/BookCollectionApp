@@ -28,7 +28,16 @@ COPY nginx.conf.template /etc/nginx/templates/default.conf.template
 EXPOSE 80
 
 # Add BACKEND_URL to production stage
+ARG NGINX_PORT
+ENV NGINX_PORT=$NGINX_PORT
 ARG BACKEND_URL
 ENV BACKEND_URL=$BACKEND_URL
+
+# Tell envsubst which variables to substitute
+ENV DOLLAR='$'
+ENV NGINX_ENVSUBST_TEMPLATE_DIR=/etc/nginx/templates
+ENV NGINX_ENVSUBST_TEMPLATE_SUFFIX=.template
+ENV NGINX_ENVSUBST_OUTPUT_DIR=/etc/nginx/conf.d
+ENV NGINX_ENVSUBST_VARS='$NGINX_PORT $BACKEND_URL'
 
 CMD ["nginx", "-g", "daemon off;"]
