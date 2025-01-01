@@ -18,12 +18,24 @@ type contextKey string
 var UserIDKey = contextKey("userID")
 
 type AuthMiddleware struct {
-	DB *gorm.DB
+	DB         *gorm.DB
+	KeyFunc    jwt.Keyfunc
+	IsTestMode bool
 }
 
 func NewAuthMiddleware(db *gorm.DB) *AuthMiddleware {
 	return &AuthMiddleware{
-		DB: db,
+		DB:         db,
+		IsTestMode: false,
+		KeyFunc:    nil,
+	}
+}
+
+func NewTestAuthMiddleware(db *gorm.DB, keyFunc jwt.Keyfunc) *AuthMiddleware {
+	return &AuthMiddleware{
+		DB:         db,
+		IsTestMode: true,
+		KeyFunc:    keyFunc,
 	}
 }
 
@@ -39,15 +51,21 @@ func (am *AuthMiddleware) Handler(next http.Handler) http.Handler {
 		tokenString := strings.TrimPrefix(authHeader, "Bearer ")
 		fmt.Printf("Auth Middleware - Token received: %s...\n", tokenString[:10])
 
-		token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
-			if _, ok := token.Method.(*jwt.SigningMethodRSA); !ok {
-				return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
+		var keyFunc jwt.Keyfunc
+		if am.IsTestMode {
+			keyFunc = am.KeyFunc
+		} else {
+			keyFunc = func(token *jwt.Token) (interface{}, error) {
+				if _, ok := token.Method.(*jwt.SigningMethodRSA); !ok {
+					return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
+				}
+				return utils.GetSigningKey("https://dev-gpkq4zj8w5w30g80.us.auth0.com/.well-known/jwks.json", token)
 			}
-			return utils.GetSigningKey("https://dev-gpkq4zj8w5w30g80.us.auth0.com/.well-known/jwks.json", token)
-		}, jwt.WithTimeFunc(func() time.Time {
+		}
+
+		token, err := jwt.Parse(tokenString, keyFunc, jwt.WithTimeFunc(func() time.Time {
 			return time.Now().Add(-5 * time.Minute)
 		}))
-
 		if err != nil {
 			fmt.Printf("Auth Middleware - Token validation error: %v\n", err)
 			http.Error(w, fmt.Sprintf("Invalid token: %v", err), http.StatusUnauthorized)
@@ -56,9 +74,7 @@ func (am *AuthMiddleware) Handler(next http.Handler) http.Handler {
 
 		if claims, ok := token.Claims.(jwt.MapClaims); ok && token.Valid {
 			if sub, ok := claims["sub"].(string); ok {
-				fmt.Printf("Auth Middleware - Successfully validated token for user: %s\n", sub)
-
-				// Ensure user exists in database
+				// Get or create user in the database
 				var user models.User
 				result := am.DB.Where("auth0_id = ?", sub).First(&user)
 				if result.Error == gorm.ErrRecordNotFound {
@@ -69,13 +85,13 @@ func (am *AuthMiddleware) Handler(next http.Handler) http.Handler {
 						Email:   email,
 					}
 					if err := am.DB.Create(&user).Error; err != nil {
-						fmt.Printf("Auth Middleware - Error creating user: %v\n", err)
-						http.Error(w, "Error creating user", http.StatusInternalServerError)
+						fmt.Printf("Auth Middleware - Failed to create user: %v\n", err)
+						http.Error(w, "Internal server error", http.StatusInternalServerError)
 						return
 					}
 				} else if result.Error != nil {
-					fmt.Printf("Auth Middleware - Error checking user: %v\n", result.Error)
-					http.Error(w, "Error checking user", http.StatusInternalServerError)
+					fmt.Printf("Auth Middleware - Database error: %v\n", result.Error)
+					http.Error(w, "Internal server error", http.StatusInternalServerError)
 					return
 				}
 
