@@ -4,7 +4,7 @@ import (
 	"log"
 	"os"
 
-	"github.com/RyanFloresTT/Book-Collection-Backend/models"
+	"github.com/RyanFloresTT/Book-Collection-Backend/internal/models"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 )

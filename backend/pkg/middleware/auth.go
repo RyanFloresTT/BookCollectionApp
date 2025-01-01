@@ -7,7 +7,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/RyanFloresTT/Book-Collection-Backend/models"
+	"github.com/RyanFloresTT/Book-Collection-Backend/internal/models"
+	"github.com/RyanFloresTT/Book-Collection-Backend/pkg/utils"
 	"github.com/golang-jwt/jwt/v5"
 	"gorm.io/gorm"
 )
@@ -42,7 +43,7 @@ func (am *AuthMiddleware) Handler(next http.Handler) http.Handler {
 			if _, ok := token.Method.(*jwt.SigningMethodRSA); !ok {
 				return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
 			}
-			return GetSigningKey("https://dev-gpkq4zj8w5w30g80.us.auth0.com/.well-known/jwks.json", token)
+			return utils.GetSigningKey("https://dev-gpkq4zj8w5w30g80.us.auth0.com/.well-known/jwks.json", token)
 		}, jwt.WithTimeFunc(func() time.Time {
 			return time.Now().Add(-5 * time.Minute)
 		}))

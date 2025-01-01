@@ -18,7 +18,7 @@ RUN go mod download
 COPY . .
 
 # Build the Go app as a statically linked binary
-RUN go build -o backend .
+RUN go build -o backend ./cmd/server/main.go
 
 # Stage 2: Create the final image
 FROM alpine:latest

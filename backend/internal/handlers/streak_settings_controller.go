@@ -1,13 +1,13 @@
 package controllers
 
 import (
+	"encoding/json"
+	"fmt"
 	"net/http"
 	"time"
-	"fmt"
-	"encoding/json"
 
-	"github.com/RyanFloresTT/Book-Collection-Backend/models"
-	"github.com/RyanFloresTT/Book-Collection-Backend/middleware"
+	"github.com/RyanFloresTT/Book-Collection-Backend/internal/models"
+	"github.com/RyanFloresTT/Book-Collection-Backend/pkg/middleware"
 	"gorm.io/gorm"
 )
 
@@ -75,7 +75,7 @@ func (c *StreakSettingsController) UpdateStreakSettings(w http.ResponseWriter, r
 	}
 
 	// Debug: Print the update we're trying to make
-	fmt.Printf("UpdateStreakSettings - Updating settings for user %s with days: %v, interval: %s\n", 
+	fmt.Printf("UpdateStreakSettings - Updating settings for user %s with days: %v, interval: %s\n",
 		userID, input.ExcludedDays, input.GoalInterval)
 
 	// Ensure input.ExcludedDays is never nil
@@ -113,4 +113,4 @@ func (c *StreakSettingsController) UpdateStreakSettings(w http.ResponseWriter, r
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(settings)
-} 
+}

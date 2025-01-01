@@ -4,8 +4,8 @@ import (
 	"net/http"
 	"os"
 
-	"github.com/RyanFloresTT/Book-Collection-Backend/controllers"
-	"github.com/RyanFloresTT/Book-Collection-Backend/middleware"
+	controllers "github.com/RyanFloresTT/Book-Collection-Backend/internal/handlers"
+	"github.com/RyanFloresTT/Book-Collection-Backend/pkg/middleware"
 	chimiddleware "github.com/go-chi/chi/middleware"
 	"github.com/go-chi/chi/v5"
 	"github.com/rs/cors"

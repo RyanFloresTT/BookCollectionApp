@@ -4,11 +4,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strconv"
 	"time"
 
-	"github.com/RyanFloresTT/Book-Collection-Backend/middleware"
-	"github.com/RyanFloresTT/Book-Collection-Backend/models"
-	"github.com/RyanFloresTT/Book-Collection-Backend/services"
+	"github.com/RyanFloresTT/Book-Collection-Backend/internal/models"
+	services "github.com/RyanFloresTT/Book-Collection-Backend/internal/service"
+	"github.com/RyanFloresTT/Book-Collection-Backend/pkg/middleware"
 	"github.com/go-chi/chi/v5"
 	"gorm.io/gorm"
 )
@@ -21,29 +22,6 @@ func NewBookController(db *gorm.DB) *BookController {
 	return &BookController{
 		BookService: services.NewBookService(db),
 	}
-}
-
-// SearchBooks handles GET /api/books/search?q=...
-func (bc *BookController) SearchBooks(w http.ResponseWriter, r *http.Request) {
-	query := r.URL.Query().Get("q")
-	if query == "" {
-		http.Error(w, "Query parameter 'q' is required", http.StatusBadRequest)
-		return
-	}
-
-	books, err := bc.BookService.SearchBooks(query)
-	if err != nil {
-		http.Error(w, "Failed to search books", http.StatusInternalServerError)
-		fmt.Println(err)
-		return
-	}
-
-	response := map[string]interface{}{
-		"results": books,
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
 }
 
 // AddBook handles POST /api/books/add
@@ -128,7 +106,7 @@ func (bc *BookController) AddBook(w http.ResponseWriter, r *http.Request) {
 	// If the book is being added as finished, record it in goal history
 	if req.FinishedAt != nil {
 		fmt.Printf("New book added as finished. Recording goal history for user %s\n", userID)
-		
+
 		// Get the user's streak settings to determine the goal interval
 		var streakSettings models.StreakSettings
 		if err := bc.BookService.GetDB().Where("auth0_id = ?", userID).First(&streakSettings).Error; err != nil {
@@ -150,7 +128,7 @@ func (bc *BookController) AddBook(w http.ResponseWriter, r *http.Request) {
 		// Get the interval start date based on when the book was finished
 		intervalStart := getIntervalStart(*req.FinishedAt, streakSettings.GoalInterval)
 		fmt.Printf("Interval start date: %v\n", intervalStart)
-		
+
 		// Count books completed in this interval
 		var booksInInterval int64
 		var user models.User
@@ -162,9 +140,9 @@ func (bc *BookController) AddBook(w http.ResponseWriter, r *http.Request) {
 
 		// Count books finished in the same interval as this book
 		if err := bc.BookService.GetDB().Model(&models.Book{}).
-			Where("user_id = ? AND finished_at IS NOT NULL AND finished_at >= ? AND finished_at <= ?", 
-				user.ID, 
-				intervalStart, 
+			Where("user_id = ? AND finished_at IS NOT NULL AND finished_at >= ? AND finished_at <= ?",
+				user.ID,
+				intervalStart,
 				time.Date(req.FinishedAt.Year(), req.FinishedAt.Month(), req.FinishedAt.Day(), 23, 59, 59, 999999999, req.FinishedAt.Location()),
 			).
 			Count(&booksInInterval).Error; err != nil {
@@ -239,10 +217,16 @@ func (bc *BookController) DeleteBook(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	bookIDUint, err := strconv.ParseUint(bookID, 10, 32)
+	if err != nil {
+		http.Error(w, "Invalid book ID", http.StatusBadRequest)
+		return
+	}
+
 	fmt.Printf("Deleting book with ID: %s\n", bookID)
 
 	// Call the service to delete the book
-	err := bc.BookService.DeleteBook(r.Context(), userID, bookID)
+	err = bc.BookService.DeleteBook(r.Context(), userID, uint(bookIDUint))
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Failed to delete book: %v", err), http.StatusInternalServerError)
 		fmt.Println("Error deleting book:", err)
@@ -317,7 +301,7 @@ func (bc *BookController) UpdateBook(w http.ResponseWriter, r *http.Request) {
 	// If the book was just finished (wasn't finished before but is now), record it in goal history
 	if existingBook.FinishedAt == nil && req.FinishedAt != nil {
 		fmt.Printf("Book was just finished. Recording goal history for user %s\n", userID)
-		
+
 		// Get the user's streak settings to determine the goal interval
 		var streakSettings models.StreakSettings
 		if err := bc.BookService.GetDB().Where("auth0_id = ?", userID).First(&streakSettings).Error; err != nil {
@@ -339,7 +323,7 @@ func (bc *BookController) UpdateBook(w http.ResponseWriter, r *http.Request) {
 		// Get the interval start date based on when the book was finished
 		intervalStart := getIntervalStart(*req.FinishedAt, streakSettings.GoalInterval)
 		fmt.Printf("Interval start date: %v\n", intervalStart)
-		
+
 		// Count books completed in this interval
 		var booksInInterval int64
 		var user models.User
@@ -351,9 +335,9 @@ func (bc *BookController) UpdateBook(w http.ResponseWriter, r *http.Request) {
 
 		// Count books finished in the same interval as this book
 		if err := bc.BookService.GetDB().Model(&models.Book{}).
-			Where("user_id = ? AND finished_at IS NOT NULL AND finished_at >= ? AND finished_at <= ?", 
-				user.ID, 
-				intervalStart, 
+			Where("user_id = ? AND finished_at IS NOT NULL AND finished_at >= ? AND finished_at <= ?",
+				user.ID,
+				intervalStart,
 				time.Date(req.FinishedAt.Year(), req.FinishedAt.Month(), req.FinishedAt.Day(), 23, 59, 59, 999999999, req.FinishedAt.Location()),
 			).
 			Count(&booksInInterval).Error; err != nil {

@@ -8,8 +8,8 @@ import (
 	"os"
 	"time"
 
-	"github.com/RyanFloresTT/Book-Collection-Backend/middleware"
-	"github.com/RyanFloresTT/Book-Collection-Backend/models"
+	"github.com/RyanFloresTT/Book-Collection-Backend/internal/models"
+	"github.com/RyanFloresTT/Book-Collection-Backend/pkg/middleware"
 	"github.com/stripe/stripe-go/v75"
 	portalsession "github.com/stripe/stripe-go/v75/billingportal/session"
 	checkoutsession "github.com/stripe/stripe-go/v75/checkout/session"

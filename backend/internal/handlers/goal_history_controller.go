@@ -7,8 +7,8 @@ import (
 	"sort"
 	"time"
 
-	"github.com/RyanFloresTT/Book-Collection-Backend/middleware"
-	"github.com/RyanFloresTT/Book-Collection-Backend/models"
+	"github.com/RyanFloresTT/Book-Collection-Backend/internal/models"
+	"github.com/RyanFloresTT/Book-Collection-Backend/pkg/middleware"
 	"gorm.io/gorm"
 )
 
