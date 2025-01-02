@@ -78,8 +78,15 @@ func (am *AuthMiddleware) Handler(next http.Handler) http.Handler {
 				var user models.User
 				result := am.DB.Where("auth0_id = ?", sub).First(&user)
 				if result.Error == gorm.ErrRecordNotFound {
-					// Create new user
+					// Ensure email is not empty
 					email, _ := claims["email"].(string)
+					if email == "" {
+						fmt.Printf("Auth Middleware - Email is missing in token claims\n")
+						http.Error(w, "Email is required", http.StatusBadRequest)
+						return
+					}
+
+					// Create new user
 					user = models.User{
 						Auth0ID: sub,
 						Email:   email,
