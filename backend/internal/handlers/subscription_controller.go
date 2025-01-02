@@ -18,14 +18,48 @@ import (
 	"gorm.io/gorm"
 )
 
+type StripeClient interface {
+	CreateCustomer(params *stripe.CustomerParams) (*stripe.Customer, error)
+	CreateCheckoutSession(params *stripe.CheckoutSessionParams) (*stripe.CheckoutSession, error)
+	CreatePortalSession(params *stripe.BillingPortalSessionParams) (*stripe.BillingPortalSession, error)
+	ConstructWebhookEvent(payload []byte, header string, secret string) (stripe.Event, error)
+	GetCustomer(id string, params *stripe.CustomerParams) (*stripe.Customer, error)
+}
+
+type DefaultStripeClient struct{}
+
+func (c *DefaultStripeClient) CreateCustomer(params *stripe.CustomerParams) (*stripe.Customer, error) {
+	return customer.New(params)
+}
+
+func (c *DefaultStripeClient) CreateCheckoutSession(params *stripe.CheckoutSessionParams) (*stripe.CheckoutSession, error) {
+	return checkoutsession.New(params)
+}
+
+func (c *DefaultStripeClient) CreatePortalSession(params *stripe.BillingPortalSessionParams) (*stripe.BillingPortalSession, error) {
+	return portalsession.New(params)
+}
+
+func (c *DefaultStripeClient) ConstructWebhookEvent(payload []byte, header string, secret string) (stripe.Event, error) {
+	return webhook.ConstructEventWithOptions(payload, header, secret, webhook.ConstructEventOptions{
+		IgnoreAPIVersionMismatch: true,
+	})
+}
+
+func (c *DefaultStripeClient) GetCustomer(id string, params *stripe.CustomerParams) (*stripe.Customer, error) {
+	return customer.Get(id, params)
+}
+
 type SubscriptionController struct {
-	DB *gorm.DB
+	DB           *gorm.DB
+	StripeClient StripeClient
 }
 
 func NewSubscriptionController(db *gorm.DB) *SubscriptionController {
 	stripe.Key = os.Getenv("STRIPE_SECRET_KEY")
 	return &SubscriptionController{
-		DB: db,
+		DB:           db,
+		StripeClient: &DefaultStripeClient{},
 	}
 }
 
@@ -40,6 +74,12 @@ func (sc *SubscriptionController) CreateCheckoutSession(w http.ResponseWriter, r
 		return
 	}
 
+	// Validate required fields
+	if req.UserID == "" || req.UserEmail == "" {
+		http.Error(w, "UserID and UserEmail are required", http.StatusBadRequest)
+		return
+	}
+
 	// Create or retrieve Stripe customer
 	customerParams := &stripe.CustomerParams{
 		Email: stripe.String(req.UserEmail),
@@ -48,7 +88,7 @@ func (sc *SubscriptionController) CreateCheckoutSession(w http.ResponseWriter, r
 		},
 	}
 
-	cus, err := customer.New(customerParams)
+	cus, err := sc.StripeClient.CreateCustomer(customerParams)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Error creating customer: %v", err), http.StatusInternalServerError)
 		return
@@ -68,7 +108,7 @@ func (sc *SubscriptionController) CreateCheckoutSession(w http.ResponseWriter, r
 		CancelURL:  stripe.String(os.Getenv("FRONTEND_URL") + "/subscription?payment_status=cancelled"),
 	}
 
-	s, err := checkoutsession.New(params)
+	s, err := sc.StripeClient.CreateCheckoutSession(params)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Error creating checkout session: %v", err), http.StatusInternalServerError)
 		return
@@ -89,28 +129,15 @@ func (sc *SubscriptionController) HandleWebhook(w http.ResponseWriter, r *http.R
 		return
 	}
 
-	fmt.Printf("Webhook - Raw payload received: %s\n", string(payload))
-
 	signatureHeader := r.Header.Get("Stripe-Signature")
-	fmt.Printf("Webhook - Stripe signature header: %s\n", signatureHeader)
-
 	webhookSecret := os.Getenv("STRIPE_WEBHOOK_SECRET")
 	if webhookSecret == "" {
-		fmt.Printf("Webhook - Error: STRIPE_WEBHOOK_SECRET is not set\n")
 		http.Error(w, "Webhook secret is not configured", http.StatusInternalServerError)
 		return
 	}
 
-	// Use ConstructEventWithOptions to ignore API version mismatch
-	event, err := webhook.ConstructEventWithOptions(
-		payload, signatureHeader, webhookSecret,
-		webhook.ConstructEventOptions{
-			IgnoreAPIVersionMismatch: true,
-		},
-	)
+	event, err := sc.StripeClient.ConstructWebhookEvent(payload, signatureHeader, webhookSecret)
 	if err != nil {
-		fmt.Printf("Error constructing webhook event: %v\n", err)
-		fmt.Printf("Webhook - Stripe signature header: %s\n", r.Header.Get("Stripe-Signature"))
 		http.Error(w, fmt.Sprintf("Error verifying webhook signature: %v", err), http.StatusBadRequest)
 		return
 	}
@@ -128,7 +155,7 @@ func (sc *SubscriptionController) HandleWebhook(w http.ResponseWriter, r *http.R
 		}
 
 		// Get full customer details
-		cus, err := customer.Get(subscription.Customer.ID, nil)
+		cus, err := sc.StripeClient.GetCustomer(subscription.Customer.ID, nil)
 		if err != nil {
 			fmt.Printf("Error getting customer details: %v\n", err)
 			http.Error(w, "Error getting customer details", http.StatusInternalServerError)
@@ -358,7 +385,7 @@ func (sc *SubscriptionController) CreatePortalSession(w http.ResponseWriter, r *
 		Customer:  stripe.String(customerID),
 		ReturnURL: stripe.String(returnURL),
 	}
-	session, err := portalsession.New(params)
+	session, err := sc.StripeClient.CreatePortalSession(params)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Error creating portal session: %v", err), http.StatusInternalServerError)
 		return
