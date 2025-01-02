@@ -17,7 +17,7 @@ import {
   Collapse,
   Button,
   Pagination,
-  Grid,
+  Grid2,
 } from '@mui/material';
 import SearchIcon from '@mui/icons-material/Search';
 import FilterListIcon from '@mui/icons-material/FilterList';
@@ -152,127 +152,131 @@ const { getAccessTokenSilently, isAuthenticated } = useAuth0();
           <Typography variant="h4" component="h1" gutterBottom>
             Your Collection
           </Typography>
-          <Button
-            startIcon={<FilterListIcon />}
-            onClick={() => setShowFilters(!showFilters)}
-            color="primary"
-          >
-            {showFilters ? 'Hide Filters' : 'Show Filters'}
-          </Button>
+          {books.length > 0 && (
+            <Button
+              startIcon={<FilterListIcon />}
+              onClick={() => setShowFilters(!showFilters)}
+              color="primary"
+            >
+              {showFilters ? 'Hide Filters' : 'Show Filters'}
+            </Button>
+          )}
         </Box>
 
-        {/* Search and Filters */}
-        <Paper sx={{ mb: 4, p: 2 }}>
-          <Grid container spacing={2}>
-            <Grid item xs={12}>
-              <TextField
-                fullWidth
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search by title or author..."
-                InputProps={{
-                  startAdornment: (
-                    <InputAdornment position="start">
-                      <SearchIcon />
-                    </InputAdornment>
-                  ),
-                  endAdornment: searchQuery && (
-                    <InputAdornment position="end">
-                      <IconButton size="small" onClick={() => setSearchQuery('')}>
-                        <ClearIcon />
-                      </IconButton>
-                    </InputAdornment>
-                  ),
-                }}
-              />
-            </Grid>
+        {books.length > 0 && (
+          <Paper sx={{ mb: 4, p: 2 }}>
+            <Grid2 container spacing={2}>
+              <Grid2 size={{ xs: 12 }}>
+                <TextField
+                  fullWidth
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Search by title or author..."
+                  InputProps={{
+                    startAdornment: (
+                      <InputAdornment position="start">
+                        <SearchIcon />
+                      </InputAdornment>
+                    ),
+                    endAdornment: searchQuery && (
+                      <InputAdornment position="end">
+                        <IconButton size="small" onClick={() => setSearchQuery('')}>
+                          <ClearIcon />
+                        </IconButton>
+                      </InputAdornment>
+                    ),
+                  }}
+                />
+              </Grid2>
+              <Collapse in={showFilters} sx={{ width: '100%' }}>
+                <Grid2 container spacing={2} sx={{ mt: 1 }}>
+                  <Grid2 size={{xs: 12, md: 4}}>
+                    <FormControl fullWidth>
+                      <InputLabel>Genres</InputLabel>
+                      <Select
+                        multiple
+                        value={selectedGenres}
+                        onChange={handleGenreChange}
+                        label="Genres"
+                        renderValue={(selected) => (
+                          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+                            {selected.map((value) => (
+                              <Chip key={value} label={value} size="small" />
+                            ))}
+                          </Box>
+                        )}
+                      >
+                        {genres.map((genre) => (
+                          <MenuItem key={genre} value={genre}>
+                            {genre}
+                          </MenuItem>
+                        ))}
+                      </Select>
+                    </FormControl>
+                  </Grid2>
 
-            <Collapse in={showFilters} sx={{ width: '100%' }}>
-              <Grid container spacing={2} sx={{ mt: 1 }}>
-                <Grid item xs={12} md={4}>
-                  <FormControl fullWidth>
-                    <InputLabel>Genres</InputLabel>
-                    <Select
-                      multiple
-                      value={selectedGenres}
-                      onChange={handleGenreChange}
-                      label="Genres"
-                      renderValue={(selected) => (
-                        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
-                          {selected.map((value) => (
-                            <Chip key={value} label={value} size="small" />
-                          ))}
-                        </Box>
-                      )}
-                    >
-                      {genres.map((genre) => (
-                        <MenuItem key={genre} value={genre}>
-                          {genre}
-                        </MenuItem>
-                      ))}
-                    </Select>
-                  </FormControl>
-                </Grid>
+                  <Grid2 size={{xs: 12, md: 4}}>
+                    <Box sx={{ px: 2 }}>
+                      <Typography gutterBottom>Minimum Rating</Typography>
+                      <Rating
+                        value={ratingFilter}
+                        onChange={(_, newValue) => setRatingFilter(newValue || 0)}
+                        precision={0.5}
+                      />
+                    </Box>
+                  </Grid2>
 
-                <Grid item xs={12} md={4}>
-                  <Box sx={{ px: 2 }}>
-                    <Typography gutterBottom>Minimum Rating</Typography>
-                    <Rating
-                      value={ratingFilter}
-                      onChange={(_, newValue) => setRatingFilter(newValue || 0)}
-                      precision={0.5}
-                    />
-                  </Box>
-                </Grid>
+                  <Grid2 size={{xs: 12, md: 4}}>
+                    <Box sx={{ px: 2 }}>
+                      <Typography gutterBottom>Page Count Range</Typography>
+                      <Slider
+                        value={pageCountRange}
+                        onChange={(_, newValue) => setPageCountRange(newValue as number[])}
+                        valueLabelDisplay="auto"
+                        min={0}
+                        max={maxPageCount}
+                        step={50}
+                      />
+                    </Box>
+                  </Grid2>
 
-                <Grid item xs={12} md={4}>
-                  <Box sx={{ px: 2 }}>
-                    <Typography gutterBottom>Page Count Range</Typography>
-                    <Slider
-                      value={pageCountRange}
-                      onChange={(_, newValue) => setPageCountRange(newValue as number[])}
-                      valueLabelDisplay="auto"
-                      min={0}
-                      max={maxPageCount}
-                      step={50}
-                    />
-                  </Box>
-                </Grid>
-
-                <Grid item xs={12}>
-                  <Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>
-                    <Button
-                      variant="outlined"
-                      onClick={handleClearFilters}
-                      startIcon={<ClearIcon />}
-                    >
-                      Clear Filters
-                    </Button>
-                  </Box>
-                </Grid>
-              </Grid>
-            </Collapse>
-          </Grid>
-        </Paper>
+                  <Grid2 size={{xs: 12}}>
+                    <Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>
+                      <Button
+                        variant="outlined"
+                        onClick={handleClearFilters}
+                        startIcon={<ClearIcon />}
+                      >
+                        Clear Filters
+                      </Button>
+                    </Box>
+                  </Grid2>
+                </Grid2>
+              </Collapse>
+            </Grid2>
+          </Paper>
+        )}
 
         {/* Results count */}
-        <Typography variant="subtitle1" sx={{ mb: 2 }}>
-          Showing {startIndex + 1}-{Math.min(startIndex + BOOKS_PER_PAGE, filteredBooks.length)} of {filteredBooks.length} books
-        </Typography>
+        {books.length > 0 && (
+          <Typography variant="subtitle1" sx={{ mb: 2 }}>
+            Showing {startIndex + 1}-{Math.min(startIndex + BOOKS_PER_PAGE, filteredBooks.length)} of {filteredBooks.length} books
+          </Typography>
+        )}
 
         {/* Book Grid */}
-        <Grid container spacing={3} sx={{ mb: 4 }}>
+        <Grid2 container spacing={3} sx={{ mb: 4 }}>
           {displayedBooks.map((book) => (
-            <Grid item xs={12} sm={6} md={4} lg={3} key={book.ID}>
+            <Grid2 size={{xs: 12, sm: 6, md: 4, lg: 3}} key={book.ID}>
               <BookCard 
                 book={book} 
                 onDeleteSuccess={() => {
                   setBooks(books.filter(b => b.ID !== book.ID));
                 }} 
               />
-            </Grid>
+            </Grid2>
           ))}
-        </Grid>
+        </Grid2>
 
         {/* Pagination - show only if there's more than one page */}
         {totalPages > 1 && (
