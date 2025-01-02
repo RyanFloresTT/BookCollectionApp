@@ -80,6 +80,17 @@ func (am *AuthMiddleware) Handler(next http.Handler) http.Handler {
 				if result.Error == gorm.ErrRecordNotFound {
 					// Create new user
 					email, _ := claims["email"].(string)
+					if email == "" {
+						// Try to get email from other possible fields
+						if fbEmail, ok := claims["https://book-collection.com/email"].(string); ok && fbEmail != "" {
+							email = fbEmail
+						} else if fbEmail, ok := claims["https://book-collection.com/facebook_email"].(string); ok && fbEmail != "" {
+							email = fbEmail
+						} else {
+							// Generate a temporary unique email if none is available
+							email = fmt.Sprintf("%s@temp-user.local", sub)
+						}
+					}
 					user = models.User{
 						Auth0ID: sub,
 						Email:   email,

@@ -125,19 +125,28 @@ func (sc *SubscriptionController) CreateCheckoutSession(w http.ResponseWriter, r
 func (sc *SubscriptionController) HandleWebhook(w http.ResponseWriter, r *http.Request) {
 	payload, err := io.ReadAll(r.Body)
 	if err != nil {
+		fmt.Printf("Webhook - Error reading request body: %v\n", err)
 		http.Error(w, "Error reading request body", http.StatusBadRequest)
 		return
 	}
 
+	fmt.Printf("Webhook - Raw payload: %s\n", string(payload))
+	
 	signatureHeader := r.Header.Get("Stripe-Signature")
+	fmt.Printf("Webhook - Stripe-Signature header: %s\n", signatureHeader)
+	
 	webhookSecret := os.Getenv("STRIPE_WEBHOOK_SECRET")
 	if webhookSecret == "" {
+		fmt.Printf("Webhook - Error: STRIPE_WEBHOOK_SECRET is empty\n")
 		http.Error(w, "Webhook secret is not configured", http.StatusInternalServerError)
 		return
 	}
+	
+	fmt.Printf("Webhook - Secret length: %d\n", len(webhookSecret))
 
 	event, err := sc.StripeClient.ConstructWebhookEvent(payload, signatureHeader, webhookSecret)
 	if err != nil {
+		fmt.Printf("Webhook - Error constructing event: %v\n", err)
 		http.Error(w, fmt.Sprintf("Error verifying webhook signature: %v", err), http.StatusBadRequest)
 		return
 	}
