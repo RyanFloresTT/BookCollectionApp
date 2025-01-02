@@ -7,7 +7,8 @@ on:
     branches: [ main ]
 
 jobs:
-  quality:
+  frontend:
+    name: Frontend Quality Control
     runs-on: ubuntu-latest
 
     steps:
@@ -32,14 +33,44 @@ jobs:
       working-directory: ./frontend
       run: npm test -- --coverage --watchAll=false
 
-    - name: Upload coverage reports
+    - name: Upload frontend coverage
       uses: codecov/codecov-action@v5
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
         slug: RyanFloresTT/BookCollectionApp
         directory: ./frontend/coverage
-        flags: unittests
+        flags: frontend
+        name: frontend-coverage
 
     - name: Build project
       working-directory: ./frontend
       run: npm run build
+
+  backend:
+    name: Backend Quality Control
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Set up Go
+      uses: actions/setup-go@v4
+      with:
+        go-version: '1.21'
+
+    - name: Install dependencies
+      working-directory: ./backend
+      run: go mod download
+
+    - name: Run tests with coverage
+      working-directory: ./backend
+      run: go test -race -coverprofile=coverage.out -covermode=atomic ./...
+
+    - name: Upload backend coverage
+      uses: codecov/codecov-action@v5
+      with:
+        token: ${{ secrets.CODECOV_TOKEN }}
+        slug: RyanFloresTT/BookCollectionApp
+        file: ./backend/coverage.out
+        flags: backend
+        name: backend-coverage
