@@ -7,8 +7,8 @@ import (
 	"net/http"
 	"os"
 
-	"github.com/RyanFloresTT/Book-Collection-Backend/initializers"
-	"github.com/RyanFloresTT/Book-Collection-Backend/routes"
+	"github.com/RyanFloresTT/Book-Collection-Backend/internal/controllers/routes"
+	"github.com/RyanFloresTT/Book-Collection-Backend/internal/initializers"
 	"github.com/go-chi/chi/v5"
 	"gorm.io/gorm"
 )

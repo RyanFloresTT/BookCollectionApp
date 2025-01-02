@@ -7,8 +7,8 @@ import (
 	"sort"
 	"time"
 
-	"github.com/RyanFloresTT/Book-Collection-Backend/middleware"
-	"github.com/RyanFloresTT/Book-Collection-Backend/models"
+	"github.com/RyanFloresTT/Book-Collection-Backend/internal/models"
+	"github.com/RyanFloresTT/Book-Collection-Backend/pkg/middleware"
 	"gorm.io/gorm"
 )
 
@@ -98,13 +98,14 @@ func calculateGoalStats(histories []models.GoalHistory) models.GoalStats {
 	totalOvershoot := 0.0
 	intervalStats := make(map[string]struct{ met, total int })
 
-	// Sort histories by end date in ascending order for streak calculation
+	// Sort histories by end date in descending order for streak calculation
 	sort.Slice(histories, func(i, j int) bool {
-		return histories[i].EndDate.Before(histories[j].EndDate)
+		return histories[i].EndDate.After(histories[j].EndDate)
 	})
 
 	// Track the last completion date for streak calculation
 	var lastCompletionDate *time.Time
+	var lastInterval string
 
 	for i, h := range histories {
 		// Update interval stats
@@ -138,23 +139,35 @@ func calculateGoalStats(histories []models.GoalHistory) models.GoalStats {
 			}
 
 			// Check if this goal completion continues the streak
-			if lastCompletionDate == nil || h.EndDate.Sub(*lastCompletionDate) <= maxGap {
-				currentStreak++
-				if currentStreak > longestStreak {
-					longestStreak = currentStreak
-				}
-			} else {
+			if lastCompletionDate == nil || lastInterval != h.Interval {
 				currentStreak = 1
+			} else {
+				// Calculate the time difference between goals
+				timeDiff := lastCompletionDate.Sub(h.EndDate)
+				if timeDiff <= maxGap {
+					currentStreak++
+				} else {
+					currentStreak = 1
+				}
 			}
+
+			if currentStreak > longestStreak {
+				longestStreak = currentStreak
+			}
+
 			lastCompletionDate = &h.EndDate
+			lastInterval = h.Interval
 
 			// Update last goal met time (most recent)
-			if i == len(histories)-1 {
+			if i == 0 {
 				stats.LastGoalMet = &h.EndDate
 			}
 		} else {
-			currentStreak = 0
-			lastCompletionDate = nil
+			if h.Interval == lastInterval {
+				currentStreak = 0
+				lastCompletionDate = nil
+				lastInterval = ""
+			}
 		}
 		intervalStats[h.Interval] = intervalStat
 	}

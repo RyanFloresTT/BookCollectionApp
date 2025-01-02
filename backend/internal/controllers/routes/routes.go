@@ -4,8 +4,8 @@ import (
 	"net/http"
 	"os"
 
-	"github.com/RyanFloresTT/Book-Collection-Backend/controllers"
-	"github.com/RyanFloresTT/Book-Collection-Backend/middleware"
+	"github.com/RyanFloresTT/Book-Collection-Backend/internal/controllers"
+	"github.com/RyanFloresTT/Book-Collection-Backend/pkg/middleware"
 	chimiddleware "github.com/go-chi/chi/middleware"
 	"github.com/go-chi/chi/v5"
 	"github.com/rs/cors"
@@ -85,10 +85,14 @@ func SetupRouter(r *chi.Mux, db *gorm.DB) {
 
 	// Update checkout routes to use subscription controller
 	r.Route("/api/checkout", func(r chi.Router) {
-		r.Use(authMiddleware.Handler)
-		r.Post("/session", subscriptionController.CreateCheckoutSession)
-		r.Post("/portal-session", subscriptionController.CreatePortalSession)
-		r.Get("/subscription-status", subscriptionController.GetSubscriptionStatus)
 		r.Post("/webhook", subscriptionController.HandleWebhook)
+
+		// All other checkout endpoints require auth
+		r.Group(func(r chi.Router) {
+			r.Use(authMiddleware.Handler)
+			r.Post("/session", subscriptionController.CreateCheckoutSession)
+			r.Post("/portal-session", subscriptionController.CreatePortalSession)
+			r.Get("/subscription-status", subscriptionController.GetSubscriptionStatus)
+		})
 	})
 }

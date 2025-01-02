@@ -2,22 +2,16 @@ package services
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
-	"net/http"
-	"os"
-	"strings"
-	"time"
 
-	"github.com/RyanFloresTT/Book-Collection-Backend/models"
+	"github.com/RyanFloresTT/Book-Collection-Backend/internal/models"
 	"gorm.io/gorm"
 )
 
 type BookService interface {
-	SearchBooks(query string) ([]models.Book, error)
 	AddBook(ctx context.Context, userID string, book models.Book) error
 	GetUserBooks(ctx context.Context, userID string) ([]models.Book, error)
-	DeleteBook(ctx context.Context, userID string, bookID string) error
+	DeleteBook(ctx context.Context, userID string, bookID uint) error
 	UpdateBook(ctx context.Context, userID string, bookID string, book models.Book) error
 	GetOrCreateUser(ctx context.Context, auth0ID string) (*models.User, error)
 	FindBookByTitleAndUser(ctx context.Context, title string, userID string) (*models.Book, error)
@@ -40,115 +34,6 @@ func NewBookService(db *gorm.DB) BookService {
 
 func (s *bookService) GetDB() *gorm.DB {
 	return s.DB
-}
-
-// SearchBooks queries Google Books API for books matching the query
-func (s *bookService) SearchBooks(query string) ([]models.Book, error) {
-	return s.fetchGoogleBooks(query)
-}
-
-func (s *bookService) fetchGoogleBooks(query string) ([]models.Book, error) {
-	var books []models.Book
-	apiKey := os.Getenv("GOOGLE_BOOKS_API_KEY")
-	query = strings.ReplaceAll(query, " ", "+")
-
-	url := fmt.Sprintf("https://www.googleapis.com/books/v1/volumes?q=%s&key=%s", query, apiKey)
-	fmt.Println("Sending request to: " + url)
-
-	client := &http.Client{Timeout: 10 * time.Second}
-	resp, err := client.Get(url)
-	if err != nil {
-		return books, err
-	}
-	defer resp.Body.Close()
-
-	var result models.GoogleBookResponse
-
-	err = json.NewDecoder(resp.Body).Decode(&result)
-	if err != nil {
-		return books, err
-	}
-
-	// Use a map to track books by title-author combination
-	bookMap := make(map[string]models.Book)
-
-	// Convert Google Books data to Book model
-	for _, bk := range result.Items {
-		if !bk.IsValid() {
-			continue
-		}
-
-		book := models.Book{
-			Title:      bk.VolumeInfo.Title,
-			Author:     bk.VolumeInfo.Authors[0],
-			CoverImage: bk.VolumeInfo.ImageLinks.Thumbnail,
-			Rating:     bk.VolumeInfo.AverageRating,
-			PageCount:  uint(bk.VolumeInfo.PageCount),
-		}
-
-		key := fmt.Sprintf("%s-%s", book.Title, book.Author)
-
-		// If the book already exists in the map, keep the one with the highest rating
-		existingBook, exists := bookMap[key]
-		if !exists || book.Rating > existingBook.Rating {
-			bookMap[key] = book
-		}
-	}
-
-	// Convert map to slice
-	for _, book := range bookMap {
-		books = append(books, book)
-	}
-
-	return books, nil
-}
-
-func (s *bookService) fetchOpenLibraryBooks(query string) ([]models.Book, error) {
-	var books []models.Book
-	query = strings.ReplaceAll(query, " ", "+")
-	url := fmt.Sprintf("https://openlibrary.org/search.json?q=%s&fields=key,title,author_name,cover_i,first_sentence,first_publish_year,place,time,person,ratings_average,number_of_pages_median&language=eng&limit=10&offset=0&sort=rating", query)
-	fmt.Println("Sending request to: " + url)
-
-	client := &http.Client{Timeout: 10 * time.Second}
-	resp, err := client.Get(url)
-	if err != nil {
-		return books, err
-	}
-	defer resp.Body.Close()
-
-	var result models.OpenLibraryResponse
-
-	err = json.NewDecoder(resp.Body).Decode(&result)
-	if err != nil {
-		return books, err
-	}
-
-	var author string
-
-	// Convert Open Library Books data to Book model
-	for _, bk := range result.Docs {
-
-		if bk.RatingsAverage == 0 {
-			continue
-		}
-
-		if len(bk.AuthorName) > 0 {
-			author = bk.AuthorName[0]
-		} else {
-			author = "Unknown Author"
-		}
-
-		book := models.Book{
-			Title:      bk.Title,
-			Author:     author,
-			CoverImage: fmt.Sprintf("https://covers.openlibrary.org/b/id/%v-L.jpg", bk.CoverI),
-			Rating:     bk.RatingsAverage,
-			PageCount:  uint(bk.NumberOfPagesMedian),
-		}
-		books = append(books, book)
-	}
-
-	return books, nil
 }
 
 // SearchUserBooks searches a user's personal book collection in the local database
@@ -210,21 +95,19 @@ func (s *bookService) GetOrCreateUser(ctx context.Context, auth0ID string) (*mod
 }
 
 // DeleteBook removes a book from the user's collection
-func (s *bookService) DeleteBook(ctx context.Context, userID string, bookID string) error {
+func (s *bookService) DeleteBook(ctx context.Context, userID string, bookID uint) error {
 	var user models.User
-
-	// Check if the user exists
-	err := s.DB.Where("auth0_id = ?", userID).First(&user).Error
-	if err != nil {
+	if err := s.DB.Where("auth0_id = ?", userID).First(&user).Error; err != nil {
 		return fmt.Errorf("failed to find user: %v", err)
 	}
 
-	// Delete the book if it belongs to the user
-	err = s.DB.Where("id = ? AND user_id = ?", bookID, user.ID).Delete(&models.Book{}).Error
-	if err != nil {
-		return fmt.Errorf("failed to delete book: %v", err)
+	result := s.DB.Where("id = ? AND user_id = ?", bookID, user.ID).Delete(&models.Book{})
+	if result.Error != nil {
+		return result.Error
 	}
-
+	if result.RowsAffected == 0 {
+		return gorm.ErrRecordNotFound
+	}
 	return nil
 }
 
@@ -246,10 +129,17 @@ func (s *bookService) FindBookByTitleAndUser(ctx context.Context, title string, 
 }
 
 func (s *bookService) RestoreBook(ctx context.Context, bookID string) error {
-	err := s.DB.Model(&models.Book{}).Where("id = ?", bookID).Update("deleted_at", nil).Error
-	if err != nil {
+	// First find the deleted book
+	var book models.Book
+	if err := s.DB.Unscoped().Where("id = ?", bookID).First(&book).Error; err != nil {
+		return fmt.Errorf("failed to find book: %v", err)
+	}
+
+	// Then restore it by clearing DeletedAt
+	if err := s.DB.Model(&book).Unscoped().Update("deleted_at", nil).Error; err != nil {
 		return fmt.Errorf("failed to restore book: %v", err)
 	}
+
 	return nil
 }
 
