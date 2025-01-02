@@ -39,11 +39,26 @@ const Subscription: React.FC = () => {
   const subscriptionStatus = useSubscriptionStatus();
   const isPremium = subscriptionStatus.isPremium;
 
+  const handleManageSubscription = async () => {
+    try {
+      const token = await getAccessTokenSilently();
+      const { url } = await stripeService.createCustomerPortalSession(token);
+      window.location.href = url;
+    } catch (error) {
+      console.error('Error creating portal session:', error);
+    }
+  };
+
   const handleSubscribe = async (tier: 'Free' | 'Premium') => {
     if (!isAuthenticated || !user) {
       loginWithRedirect({
         appState: { returnTo: '/subscription' }
       });
+      return;
+    }
+
+    if (!user.sub || !user.email) {
+      console.error('Missing required user information');
       return;
     }
 
@@ -56,26 +71,17 @@ const Subscription: React.FC = () => {
         // Handle upgrade
         try {
           const token = await getAccessTokenSilently();
-          const { url } = await stripeService.createCheckoutSession(
-            user.sub as string,
-            user.email as string,
+          const response = await stripeService.createCheckoutSession(
+            user.sub,
+            user.email,
             token
           );
-          window.location.href = url;
-        } catch (err) {
-          console.error('Error creating checkout session:', err);
+
+          window.location.href = response.url;
+        } catch (error) {
+          console.error('Error creating checkout session:', error);
         }
       }
-    }
-  };
-
-  const handleManageSubscription = async () => {
-    try {
-      const token = await getAccessTokenSilently();
-      const { url } = await stripeService.createCustomerPortalSession(token);
-      window.location.href = url;
-    } catch (error) {
-      console.error('Error creating portal session:', error);
     }
   };
 

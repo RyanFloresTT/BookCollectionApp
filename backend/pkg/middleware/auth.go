@@ -74,23 +74,36 @@ func (am *AuthMiddleware) Handler(next http.Handler) http.Handler {
 
 		if claims, ok := token.Claims.(jwt.MapClaims); ok && token.Valid {
 			if sub, ok := claims["sub"].(string); ok {
+				// Log all claims for debugging
+				fmt.Printf("Auth Middleware - Token claims: %+v\n", claims)
+				
 				// Get or create user in the database
 				var user models.User
 				result := am.DB.Where("auth0_id = ?", sub).First(&user)
 				if result.Error == gorm.ErrRecordNotFound {
 					// Create new user
 					email, _ := claims["email"].(string)
+					fmt.Printf("Auth Middleware - Initial email from claims: %s\n", email)
+					
 					if email == "" {
-						// Try to get email from other possible fields
-						if fbEmail, ok := claims["https://book-collection.com/email"].(string); ok && fbEmail != "" {
-							email = fbEmail
-						} else if fbEmail, ok := claims["https://book-collection.com/facebook_email"].(string); ok && fbEmail != "" {
-							email = fbEmail
+						// Try to get email from other claims
+						if emailClaim, ok := claims["https://book-collection.com/email"].(string); ok && emailClaim != "" {
+							email = emailClaim
+							fmt.Printf("Auth Middleware - Using email from custom claim: %s\n", email)
 						} else {
+							// Log all available claims for debugging
+							fmt.Printf("Auth Middleware - No email found in claims. Available claims:\n")
+							for key, value := range claims {
+								fmt.Printf("  %s: %v\n", key, value)
+							}
 							// Generate a temporary unique email if none is available
 							email = fmt.Sprintf("%s@temp-user.local", sub)
+							fmt.Printf("Auth Middleware - Using temporary email: %s\n", email)
 						}
+					} else {
+						fmt.Printf("Auth Middleware - Using email from primary claim: %s\n", email)
 					}
+
 					user = models.User{
 						Auth0ID: sub,
 						Email:   email,
@@ -100,10 +113,13 @@ func (am *AuthMiddleware) Handler(next http.Handler) http.Handler {
 						http.Error(w, "Internal server error", http.StatusInternalServerError)
 						return
 					}
+					fmt.Printf("Auth Middleware - Created new user with email: %s\n", email)
 				} else if result.Error != nil {
 					fmt.Printf("Auth Middleware - Database error: %v\n", result.Error)
 					http.Error(w, "Internal server error", http.StatusInternalServerError)
 					return
+				} else {
+					fmt.Printf("Auth Middleware - Found existing user with email: %s\n", user.Email)
 				}
 
 				ctx := context.WithValue(r.Context(), UserIDKey, sub)
