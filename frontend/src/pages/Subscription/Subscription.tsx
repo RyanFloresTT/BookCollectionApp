@@ -21,7 +21,7 @@ import AutoStories from '@mui/icons-material/AutoStories';
 import EmojiEventsIcon from '@mui/icons-material/EmojiEvents';
 import LinearProgress from '@mui/material/LinearProgress';
 import { Pie, Bar } from 'react-chartjs-2';
-
+import SubscriptionNoticeModal from '../../components/DevelopmentModals/SubscriptionNoticeModal';
 const PricingCard = styled(Paper)(({ theme }) => ({
   padding: theme.spacing(4),
   height: '100%',
@@ -87,6 +87,7 @@ const Subscription: React.FC = () => {
 
   return (
     <Container maxWidth="lg">
+      <SubscriptionNoticeModal />
       <Box sx={{ py: 6 }}>
         {/* Hero Section */}
         <Box sx={{ textAlign: 'center', mb: 8 }}>

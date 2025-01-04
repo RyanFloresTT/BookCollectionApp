@@ -9,6 +9,7 @@ import { styled } from '@mui/material/styles';
 import ManualBookEntry from '../../components/ManualBookEntry/ManualBookEntry';
 import { useNavigate } from 'react-router-dom';
 import { Bar, Pie } from 'react-chartjs-2';
+import DevelopmentNoticeModal from '../../components/DevelopmentModals/DevelopmentNoticeModal';
 
 const HeroSection = styled(Paper)(({ theme }) => ({
   padding: theme.spacing(8),
@@ -81,6 +82,7 @@ const Home: React.FC = () => {
 
   return (
     <Container maxWidth="lg">
+      <DevelopmentNoticeModal />
       <Fade in timeout={800}>
         <Box sx={{ py: 4 }}>
           <HeroSection elevation={3}>
