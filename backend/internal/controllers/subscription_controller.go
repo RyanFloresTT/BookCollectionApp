@@ -74,6 +74,12 @@ func (sc *SubscriptionController) CreateCheckoutSession(w http.ResponseWriter, r
 		return
 	}
 
+	// Validate required fields
+	if req.UserID == "" || req.UserEmail == "" {
+		http.Error(w, "Missing required fields", http.StatusBadRequest)
+		return
+	}
+
 	// Get user from database
 	var user models.User
 	result := sc.DB.Where("auth0_id = ?", req.UserID).First(&user)
