@@ -37,10 +37,11 @@ jobs:
       uses: codecov/codecov-action@v5
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
-        slug: RyanFloresTT/BookCollectionApp
-        directory: ./frontend/coverage
+        files: ./frontend/coverage/lcov.info
         flags: frontend
-        name: frontend-coverage
+        fail_ci_if_error: true
+        verbose: true
+        working-directory: ./frontend
 
     - name: Build project
       working-directory: ./frontend
@@ -64,13 +65,14 @@ jobs:
 
     - name: Run tests with coverage
       working-directory: ./backend
-      run: go test -race -coverprofile=coverage.out -covermode=atomic ./...
+      run: go test -race -coverprofile=coverage.txt -covermode=atomic ./...
 
     - name: Upload backend coverage
       uses: codecov/codecov-action@v5
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
-        slug: RyanFloresTT/BookCollectionApp
-        file: ./backend/coverage.out
+        files: ./backend/coverage.txt
         flags: backend
-        name: backend-coverage
+        fail_ci_if_error: true
+        verbose: true
+        working-directory: ./backend
