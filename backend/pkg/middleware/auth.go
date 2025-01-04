@@ -81,29 +81,16 @@ func (am *AuthMiddleware) Handler(next http.Handler) http.Handler {
 				var user models.User
 				result := am.DB.Where("auth0_id = ?", sub).First(&user)
 				if result.Error == gorm.ErrRecordNotFound {
-					// Create new user
-					email, _ := claims["email"].(string)
-					fmt.Printf("Auth Middleware - Initial email from claims: %s\n", email)
-					
-					if email == "" {
-						// Try to get email from other claims
-						if emailClaim, ok := claims["https://book-collection.com/email"].(string); ok && emailClaim != "" {
-							email = emailClaim
-							fmt.Printf("Auth Middleware - Using email from custom claim: %s\n", email)
-						} else {
-							// Log all available claims for debugging
-							fmt.Printf("Auth Middleware - No email found in claims. Available claims:\n")
-							for key, value := range claims {
-								fmt.Printf("  %s: %v\n", key, value)
-							}
-							// Generate a temporary unique email if none is available
-							email = fmt.Sprintf("%s@temp-user.local", sub)
-							fmt.Printf("Auth Middleware - Using temporary email: %s\n", email)
-						}
-					} else {
-						fmt.Printf("Auth Middleware - Using email from primary claim: %s\n", email)
+					// Ensure email is not empty
+					for _, claim := range claims {
+						fmt.Printf("Auth Middleware - Claim: %v\n", claim)
 					}
-
+					email, _ := claims["email"].(string)
+					if email == "" {
+						fmt.Printf("Auth Middleware - Email is missing in token claims\n")
+						http.Error(w, "Email is required", http.StatusBadRequest)
+						return
+					}
 					user = models.User{
 						Auth0ID: sub,
 						Email:   email,
