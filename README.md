@@ -46,7 +46,7 @@ To get started with BookCollection, follow these steps:
 
 ## Code Coverage
 
-[![Frontend Coverage](https://codecov.io/gh/RyanFloresTT/BookCollectionApp/branch/main/graph/badge.svg?flag=frontend)](https://codecov.io/gh/RyanFloresTT/BookCollectionApp)
-[![Backend Coverage](https://codecov.io/gh/RyanFloresTT/BookCollectionApp/branch/main/graph/badge.svg?flag=backend)](https://codecov.io/gh/RyanFloresTT/BookCollectionApp)
+- Frontend: [![Frontend Coverage](https://codecov.io/gh/RyanFloresTT/BookCollectionApp/branch/main/graph/badge.svg?flag=frontend)](https://codecov.io/gh/RyanFloresTT/BookCollectionApp)
+- Backend: [![Backend Coverage](https://codecov.io/gh/RyanFloresTT/BookCollectionApp/branch/main/graph/badge.svg?flag=backend)](https://codecov.io/gh/RyanFloresTT/BookCollectionApp)
 
 Thank you for checking out BookCollection! I hope this project demonstrates my ability to create and manage a full-stack application using modern technologies. If you have any questions or feedback, feel free to reach out.

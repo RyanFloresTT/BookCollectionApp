@@ -13,8 +13,12 @@ export const Auth0ProviderWithNavigate = ({ children }: Auth0ProviderWithNavigat
       authorizationParams={{
         redirect_uri: window.location.origin,
         audience: process.env.REACT_APP_AUTH0_AUDIENCE,
-        scope: "openid profile email read:current_user update:current_user_metadata"
+        scope: "openid profile email offline_access",
+        response_type: "code id_token token",
       }}
+      useRefreshTokens={true}
+      cacheLocation="localstorage"
+      useRefreshTokensFallback={true}
     >
       {children}
     </Auth0Provider>

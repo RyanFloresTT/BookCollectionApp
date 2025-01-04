@@ -64,20 +64,55 @@ func NewSubscriptionController(db *gorm.DB) *SubscriptionController {
 }
 
 func (sc *SubscriptionController) CreateCheckoutSession(w http.ResponseWriter, r *http.Request) {
+	// Parse request body
 	var req struct {
 		UserID    string `json:"userId"`
 		UserEmail string `json:"userEmail"`
 	}
-
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "Invalid request payload", http.StatusBadRequest)
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
 		return
 	}
 
 	// Validate required fields
 	if req.UserID == "" || req.UserEmail == "" {
-		http.Error(w, "UserID and UserEmail are required", http.StatusBadRequest)
+		http.Error(w, "Missing required fields", http.StatusBadRequest)
 		return
+	}
+
+	// Get user from database
+	var user models.User
+	result := sc.DB.Where("auth0_id = ?", req.UserID).First(&user)
+	if result.Error != nil {
+		if result.Error == gorm.ErrRecordNotFound {
+			http.Error(w, "User not found", http.StatusNotFound)
+			return
+		}
+		http.Error(w, "Database error", http.StatusInternalServerError)
+		return
+	}
+
+	// Update user's email if it's different
+	if user.Email != req.UserEmail {
+		user.Email = req.UserEmail
+		if err := sc.DB.Save(&user).Error; err != nil {
+			fmt.Printf("Failed to update user email: %v\n", err)
+			// Continue anyway since we have the email for Stripe
+		}
+	}
+
+	// Create Stripe checkout session
+	params := &stripe.CheckoutSessionParams{
+		Customer: nil, // We'll create or get the customer first
+		Mode:     stripe.String(string(stripe.CheckoutSessionModeSubscription)),
+		LineItems: []*stripe.CheckoutSessionLineItemParams{
+			{
+				Price:    stripe.String(os.Getenv("STRIPE_PREMIUM_PRICE_ID")),
+				Quantity: stripe.Int64(1),
+			},
+		},
+		SuccessURL: stripe.String(os.Getenv("FRONTEND_URL") + "/stats?payment_status=success"),
+		CancelURL:  stripe.String(os.Getenv("FRONTEND_URL") + "/subscription?payment_status=cancelled"),
 	}
 
 	// Create or retrieve Stripe customer
@@ -94,37 +129,26 @@ func (sc *SubscriptionController) CreateCheckoutSession(w http.ResponseWriter, r
 		return
 	}
 
-	// Create checkout session
-	params := &stripe.CheckoutSessionParams{
-		Customer: stripe.String(cus.ID),
-		Mode:     stripe.String(string(stripe.CheckoutSessionModeSubscription)),
-		LineItems: []*stripe.CheckoutSessionLineItemParams{
-			{
-				Price:    stripe.String(os.Getenv("STRIPE_PREMIUM_PRICE_ID")),
-				Quantity: stripe.Int64(1),
-			},
-		},
-		SuccessURL: stripe.String(os.Getenv("FRONTEND_URL") + "/stats?payment_status=success"),
-		CancelURL:  stripe.String(os.Getenv("FRONTEND_URL") + "/subscription?payment_status=cancelled"),
-	}
+	// Set the customer on the checkout session
+	params.Customer = stripe.String(cus.ID)
 
-	s, err := sc.StripeClient.CreateCheckoutSession(params)
+	// Create the session
+	session, err := sc.StripeClient.CreateCheckoutSession(params)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Error creating checkout session: %v", err), http.StatusInternalServerError)
 		return
 	}
 
-	response := map[string]interface{}{
-		"url": s.URL,
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
+	// Return the session URL
+	json.NewEncoder(w).Encode(map[string]string{
+		"url": session.URL,
+	})
 }
 
 func (sc *SubscriptionController) HandleWebhook(w http.ResponseWriter, r *http.Request) {
 	payload, err := io.ReadAll(r.Body)
 	if err != nil {
+		fmt.Printf("Webhook - Error reading request body: %v\n", err)
 		http.Error(w, "Error reading request body", http.StatusBadRequest)
 		return
 	}
@@ -132,17 +156,17 @@ func (sc *SubscriptionController) HandleWebhook(w http.ResponseWriter, r *http.R
 	signatureHeader := r.Header.Get("Stripe-Signature")
 	webhookSecret := os.Getenv("STRIPE_WEBHOOK_SECRET")
 	if webhookSecret == "" {
+		fmt.Printf("Webhook - Error: STRIPE_WEBHOOK_SECRET is empty\n")
 		http.Error(w, "Webhook secret is not configured", http.StatusInternalServerError)
 		return
 	}
 
 	event, err := sc.StripeClient.ConstructWebhookEvent(payload, signatureHeader, webhookSecret)
 	if err != nil {
+		fmt.Printf("Webhook - Error constructing event: %v\n", err)
 		http.Error(w, fmt.Sprintf("Error verifying webhook signature: %v", err), http.StatusBadRequest)
 		return
 	}
-
-	fmt.Printf("Webhook - Received event type: %s\n", event.Type)
 
 	switch event.Type {
 	case "customer.subscription.created", "customer.subscription.updated":
@@ -163,10 +187,6 @@ func (sc *SubscriptionController) HandleWebhook(w http.ResponseWriter, r *http.R
 		}
 
 		auth0ID := cus.Metadata["auth0_id"]
-		fmt.Printf("Webhook - Customer details: ID=%s, Email=%s, Metadata=%v\n",
-			cus.ID, cus.Email, cus.Metadata)
-		fmt.Printf("Webhook - Processing subscription for auth0_id: %s\n", auth0ID)
-
 		var user models.User
 		if err := sc.DB.Where("auth0_id = ?", auth0ID).First(&user).Error; err != nil {
 			fmt.Printf("Webhook - Error finding user: %v\n", err)
@@ -181,8 +201,6 @@ func (sc *SubscriptionController) HandleWebhook(w http.ResponseWriter, r *http.R
 			return
 		}
 
-		fmt.Printf("Webhook - Found user with ID: %d\n", user.ID)
-
 		// Check for existing subscription
 		var existingSub models.Subscription
 		err = sc.DB.Where("user_id = ?", user.ID).First(&existingSub).Error
@@ -192,34 +210,47 @@ func (sc *SubscriptionController) HandleWebhook(w http.ResponseWriter, r *http.R
 			return
 		}
 
-		sub := models.Subscription{
-			ID:               subscription.ID,
-			UserID:           user.ID,
-			StripeCustomerID: subscription.Customer.ID,
-			Status:           string(subscription.Status),
-			CurrentPeriodEnd: time.Unix(subscription.CurrentPeriodEnd, 0),
+		// Only update if the new status is "better" than the current one
+		shouldUpdate := true
+		if err != gorm.ErrRecordNotFound {
+			statusPriority := map[string]int{
+				"incomplete": 0,
+				"incomplete_expired": 0,
+				"past_due": 1,
+				"canceled": 1,
+				"active": 2,
+			}
+
+			newPriority := statusPriority[string(subscription.Status)]
+			currentPriority := statusPriority[existingSub.Status]
+			shouldUpdate = newPriority >= currentPriority
 		}
 
-		// If subscription exists, update it, otherwise create new
-		if err == gorm.ErrRecordNotFound {
-			fmt.Printf("Webhook - Creating new subscription\n")
-			if err := sc.DB.Create(&sub).Error; err != nil {
-				fmt.Printf("Webhook - Error creating subscription: %v\n", err)
-				http.Error(w, "Error creating subscription", http.StatusInternalServerError)
-				return
+		if shouldUpdate {
+			sub := models.Subscription{
+				ID:               subscription.ID,
+				UserID:           user.ID,
+				StripeCustomerID: subscription.Customer.ID,
+				Status:           string(subscription.Status),
+				CurrentPeriodEnd: time.Unix(subscription.CurrentPeriodEnd, 0),
 			}
-		} else {
-			fmt.Printf("Webhook - Updating existing subscription\n")
-			if err := sc.DB.Model(&models.Subscription{}).
-				Where("user_id = ?", user.ID).
-				Updates(sub).Error; err != nil {
-				fmt.Printf("Webhook - Error updating subscription: %v\n", err)
-				http.Error(w, "Error updating subscription", http.StatusInternalServerError)
-				return
+
+			if err == gorm.ErrRecordNotFound {
+				if err := sc.DB.Create(&sub).Error; err != nil {
+					fmt.Printf("Webhook - Error creating subscription: %v\n", err)
+					http.Error(w, "Error creating subscription", http.StatusInternalServerError)
+					return
+				}
+			} else {
+				if err := sc.DB.Model(&models.Subscription{}).
+					Where("user_id = ?", user.ID).
+					Updates(sub).Error; err != nil {
+					fmt.Printf("Webhook - Error updating subscription: %v\n", err)
+					http.Error(w, "Error updating subscription", http.StatusInternalServerError)
+					return
+				}
 			}
 		}
-
-		fmt.Printf("Webhook - Successfully saved subscription: ID=%s, Status=%s\n", sub.ID, sub.Status)
 
 	case "customer.subscription.deleted":
 		var subscription stripe.Subscription
@@ -230,8 +261,6 @@ func (sc *SubscriptionController) HandleWebhook(w http.ResponseWriter, r *http.R
 			return
 		}
 
-		fmt.Printf("Webhook - Processing subscription deletion: ID=%s\n", subscription.ID)
-
 		if err := sc.DB.Model(&models.Subscription{}).
 			Where("id = ?", subscription.ID).
 			Update("status", "canceled").Error; err != nil {
@@ -239,21 +268,14 @@ func (sc *SubscriptionController) HandleWebhook(w http.ResponseWriter, r *http.R
 			http.Error(w, "Error updating subscription", http.StatusInternalServerError)
 			return
 		}
-
-		fmt.Printf("Webhook - Successfully marked subscription as canceled: %s\n", subscription.ID)
 	}
 
 	w.WriteHeader(http.StatusOK)
 }
 
 func (sc *SubscriptionController) GetSubscriptionStatus(w http.ResponseWriter, r *http.Request) {
-	// Get user ID from context
 	userID, ok := r.Context().Value(middleware.UserIDKey).(string)
-	fmt.Printf("GetSubscriptionStatus - Auth check - UserID from context: %v, ok: %v\n", userID, ok)
-
 	if !ok || userID == "" {
-		fmt.Printf("GetSubscriptionStatus - No valid user ID in context\n")
-		// Return free status for unauthenticated users
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(map[string]interface{}{
 			"status": "free",
@@ -263,7 +285,6 @@ func (sc *SubscriptionController) GetSubscriptionStatus(w http.ResponseWriter, r
 
 	var user models.User
 	if err := sc.DB.Where("auth0_id = ?", userID).First(&user).Error; err != nil {
-		fmt.Printf("GetSubscriptionStatus - Error finding user with auth0_id %s: %v\n", userID, err)
 		if err == gorm.ErrRecordNotFound {
 			w.Header().Set("Content-Type", "application/json")
 			json.NewEncoder(w).Encode(map[string]interface{}{
@@ -271,21 +292,19 @@ func (sc *SubscriptionController) GetSubscriptionStatus(w http.ResponseWriter, r
 			})
 			return
 		}
+		fmt.Printf("GetSubscriptionStatus - Error finding user: %v\n", err)
 		http.Error(w, "Error fetching user", http.StatusInternalServerError)
 		return
 	}
 
-	fmt.Printf("GetSubscriptionStatus - Found user with ID: %d\n", user.ID)
-
 	var subscription models.Subscription
 	if err := sc.DB.Where("user_id = ?", user.ID).First(&subscription).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
-			// Create a default free subscription
 			subscription = models.Subscription{
-				UserID: user.ID,
-				Status: "free",
-				// Set current period end to a far future date for free tier
-				CurrentPeriodEnd: time.Now().AddDate(100, 0, 0), // 100 years in the future
+				ID:               fmt.Sprintf("free_%d_%s", user.ID, time.Now().Format("20060102150405")),
+				UserID:           user.ID,
+				Status:           "free",
+				CurrentPeriodEnd: time.Now().AddDate(100, 0, 0),
 			}
 
 			if err := sc.DB.Create(&subscription).Error; err != nil {
@@ -293,7 +312,6 @@ func (sc *SubscriptionController) GetSubscriptionStatus(w http.ResponseWriter, r
 				http.Error(w, "Error creating subscription", http.StatusInternalServerError)
 				return
 			}
-			fmt.Printf("GetSubscriptionStatus - Created default free subscription for user %d\n", user.ID)
 
 			w.Header().Set("Content-Type", "application/json")
 			json.NewEncoder(w).Encode(map[string]interface{}{
@@ -306,12 +324,7 @@ func (sc *SubscriptionController) GetSubscriptionStatus(w http.ResponseWriter, r
 		return
 	}
 
-	fmt.Printf("GetSubscriptionStatus - Found subscription: ID=%s, Status=%s, Expires=%v, StripeCustomerID=%s\n",
-		subscription.ID, subscription.Status, subscription.CurrentPeriodEnd, subscription.StripeCustomerID)
-
-	// Check if subscription is active and not expired
 	if subscription.Status == "active" && subscription.CurrentPeriodEnd.After(time.Now()) {
-		fmt.Printf("GetSubscriptionStatus - Subscription is active and not expired\n")
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(map[string]interface{}{
 			"status":       "active",
@@ -320,8 +333,6 @@ func (sc *SubscriptionController) GetSubscriptionStatus(w http.ResponseWriter, r
 		return
 	}
 
-	fmt.Printf("GetSubscriptionStatus - Subscription is not active or has expired\n")
-	// Return free status for inactive or expired subscriptions
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]interface{}{
 		"status":       "free",
@@ -331,14 +342,12 @@ func (sc *SubscriptionController) GetSubscriptionStatus(w http.ResponseWriter, r
 
 // CreatePortalSession creates a Stripe Customer Portal session
 func (sc *SubscriptionController) CreatePortalSession(w http.ResponseWriter, r *http.Request) {
-	// Get user ID from context
 	userID, ok := r.Context().Value(middleware.UserIDKey).(string)
 	if !ok {
 		http.Error(w, "User not found in context", http.StatusUnauthorized)
 		return
 	}
 
-	// Get customer ID for the user
 	var user models.User
 	if err := sc.DB.Where("auth0_id = ?", userID).First(&user).Error; err != nil {
 		http.Error(w, "User not found", http.StatusNotFound)

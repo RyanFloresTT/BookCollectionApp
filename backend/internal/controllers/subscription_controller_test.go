@@ -151,6 +151,11 @@ func TestCreateCheckoutSession(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			// Create a fresh user for each test case
+			if tt.name == "Valid Request" {
+				_ = createSubscriptionTestUser(t, db)
+			}
+
 			var body []byte
 			if tt.payload != nil {
 				body, _ = json.Marshal(tt.payload)

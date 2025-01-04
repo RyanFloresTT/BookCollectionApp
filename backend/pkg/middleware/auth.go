@@ -74,6 +74,9 @@ func (am *AuthMiddleware) Handler(next http.Handler) http.Handler {
 
 		if claims, ok := token.Claims.(jwt.MapClaims); ok && token.Valid {
 			if sub, ok := claims["sub"].(string); ok {
+				// Log all claims for debugging
+				fmt.Printf("Auth Middleware - Token claims: %+v\n", claims)
+				
 				// Get or create user in the database
 				var user models.User
 				result := am.DB.Where("auth0_id = ?", sub).First(&user)
@@ -82,14 +85,12 @@ func (am *AuthMiddleware) Handler(next http.Handler) http.Handler {
 					for _, claim := range claims {
 						fmt.Printf("Auth Middleware - Claim: %v\n", claim)
 					}
-					email, _ := claims["email"].(string)
+					email, _ := claims["email"].(string
 					if email == "" {
 						fmt.Printf("Auth Middleware - Email is missing in token claims\n")
 						http.Error(w, "Email is required", http.StatusBadRequest)
 						return
 					}
-
-					// Create new user
 					user = models.User{
 						Auth0ID: sub,
 						Email:   email,
@@ -99,10 +100,13 @@ func (am *AuthMiddleware) Handler(next http.Handler) http.Handler {
 						http.Error(w, "Internal server error", http.StatusInternalServerError)
 						return
 					}
+					fmt.Printf("Auth Middleware - Created new user with email: %s\n", email)
 				} else if result.Error != nil {
 					fmt.Printf("Auth Middleware - Database error: %v\n", result.Error)
 					http.Error(w, "Internal server error", http.StatusInternalServerError)
 					return
+				} else {
+					fmt.Printf("Auth Middleware - Found existing user with email: %s\n", user.Email)
 				}
 
 				ctx := context.WithValue(r.Context(), UserIDKey, sub)
