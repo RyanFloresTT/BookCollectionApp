@@ -79,6 +79,9 @@ func (am *AuthMiddleware) Handler(next http.Handler) http.Handler {
 				result := am.DB.Where("auth0_id = ?", sub).First(&user)
 				if result.Error == gorm.ErrRecordNotFound {
 					// Ensure email is not empty
+					for _, claim := range claims {
+						fmt.Printf("Auth Middleware - Claim: %v\n", claim)
+					}
 					email, _ := claims["email"].(string)
 					if email == "" {
 						fmt.Printf("Auth Middleware - Email is missing in token claims\n")
