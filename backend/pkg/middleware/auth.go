@@ -85,7 +85,7 @@ func (am *AuthMiddleware) Handler(next http.Handler) http.Handler {
 					for _, claim := range claims {
 						fmt.Printf("Auth Middleware - Claim: %v\n", claim)
 					}
-					email, _ := claims["email"].(string
+					email, _ := claims["email"].(string)
 					if email == "" {
 						fmt.Printf("Auth Middleware - Email is missing in token claims\n")
 						http.Error(w, "Email is required", http.StatusBadRequest)
