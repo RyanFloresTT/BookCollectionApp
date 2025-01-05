@@ -81,6 +81,7 @@ const Home: React.FC = () => {
 
   return (
     <Container maxWidth="lg">
+      <DevelopmentNoticeModal />
       <Fade in timeout={800}>
         <Box sx={{ py: 4 }}>
           <HeroSection elevation={3}>
