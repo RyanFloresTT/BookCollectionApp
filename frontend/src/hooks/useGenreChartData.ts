@@ -9,7 +9,7 @@ import {
   Tooltip,
   Legend
 } from 'chart.js';
-import { Book } from '../types/Book';
+import { Book } from '../types/book';
 
 // Register Chart.js components
 ChartJS.register(

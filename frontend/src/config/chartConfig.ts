@@ -1,5 +1,3 @@
-import { themeColors } from './themeColors';
-
 // Vibrant colors that work well in both light and dark modes
 export const chartColors = {
   primary: '#1976d2', // Blue

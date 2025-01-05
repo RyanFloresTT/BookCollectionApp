@@ -2,7 +2,7 @@ import React from 'react';
 import Grid2 from '@mui/material/Grid2';
 import { StatCard } from '../../../../components/Stats/StatCard';
 import { FeatureSection } from '../../../../components/Stats/FeatureSection';
-import { Book } from '../../../../types/Book';
+import { Book } from '../../../../types/book';
 import LocalFireDepartmentIcon from '@mui/icons-material/LocalFireDepartment';
 import SpeedIcon from '@mui/icons-material/Speed';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
@@ -10,7 +10,6 @@ import TrendingUpIcon from '@mui/icons-material/TrendingUp';
 import MenuBookIcon from '@mui/icons-material/MenuBook';
 import AccessTimeIcon from '@mui/icons-material/AccessTime';
 import { useQuery } from '@tanstack/react-query';
-import axios from 'axios';
 import api from '../../../../services/api';
 import { useAuth0 } from '@auth0/auth0-react';
 
@@ -38,8 +37,6 @@ interface KeyStatsProps {
 }
 
 export const KeyStats: React.FC<KeyStatsProps> = ({ books }) => {
-  const { getAccessTokenSilently } = useAuth0();
-
   // Fetch streak settings
   const { data: streakSettings } = useQuery<StreakSettings>({
     queryKey: ['streakSettings'],

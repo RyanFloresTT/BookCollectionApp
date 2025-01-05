@@ -6,7 +6,6 @@ const LoginButton: React.FC = () => {
   const { loginWithRedirect } = useAuth0();
 
   const handleLogin = async () => {
-    console.log("Login button pressed");
     try {
       await loginWithRedirect();
     } catch (error) {

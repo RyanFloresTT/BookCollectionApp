@@ -1,6 +1,6 @@
 import React from 'react';
 import Grid2 from '@mui/material/Grid2';
-import { Book } from '../../../../types/Book';
+import { Book } from '../../../../types/book';
 import { StatCard } from '../../../../components/Stats/StatCard';
 import { FeatureSection } from '../../../../components/Stats/FeatureSection';
 import MenuBookIcon from '@mui/icons-material/MenuBook';

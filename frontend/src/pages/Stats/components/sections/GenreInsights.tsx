@@ -1,7 +1,7 @@
 import React from 'react';
 import { Box, Typography } from '@mui/material';
 import { FeatureSection } from '../../../../components/Stats/FeatureSection';
-import { Book } from '../../../../types/Book';
+import { Book } from '../../../../types/book';
 import { Pie } from 'react-chartjs-2';
 import { useSubscriptionStatus } from '../../../../hooks/useSubscriptionStatus';
 import '../../../../config/chartjs';

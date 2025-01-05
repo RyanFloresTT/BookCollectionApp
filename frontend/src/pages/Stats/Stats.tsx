@@ -1,6 +1,5 @@
 import React from 'react';
 import { Container, Box, Typography, Paper } from '@mui/material';
-import Grid2 from '@mui/material/Grid2';
 import { Bar } from 'react-chartjs-2';
 import { useAuth0 } from '@auth0/auth0-react';
 import { BasicStats } from './components/sections/BasicStats';
@@ -11,7 +10,7 @@ import { BookStats } from './components/sections/BookStats';
 import { ReadingGoal } from './components/sections/ReadingGoal';
 import { PremiumCTA } from './components/sections/PremiumCTA';
 import { useSubscriptionStatus } from '../../hooks/useSubscriptionStatus';
-import { Book } from '../../types/Book';
+import { Book } from '../../types/book';
 import api from '../../services/api';
 import '../../config/chartjs';
 

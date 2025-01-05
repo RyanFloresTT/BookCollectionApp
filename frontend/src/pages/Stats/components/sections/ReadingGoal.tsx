@@ -18,7 +18,7 @@ import {
 } from '@mui/material';
 import EditIcon from '@mui/icons-material/Edit';
 import { FeatureSection } from '../../../../components/Stats/FeatureSection';
-import { Book } from '../../../../types/Book';
+import { Book } from '../../../../types/book';
 import api from '../../../../services/api';
 import { useSnackbar } from '../../../../hooks/useSnackbar';
 import { useQuery } from '@tanstack/react-query';

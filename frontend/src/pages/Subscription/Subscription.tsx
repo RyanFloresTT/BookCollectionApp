@@ -6,20 +6,11 @@ import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import { useAuth0 } from '@auth0/auth0-react';
 import { stripeService } from '../../services/stripeService';
 import { useSubscriptionStatus } from '../../hooks/useSubscriptionStatus';
-import {
-  KeyStatsFeature,
-  ReadingPatternsFeature,
-  GenreInsightsFeature,
-  BookStatsFeature,
-  MonthlyProgressFeature,
-  ReadingGoalFeature,
-} from '../../components/PremiumFeatures/PremiumFeatures';
 import AutoGraphIcon from '@mui/icons-material/AutoGraph';
 import MenuBook from '@mui/icons-material/MenuBook';
 import Category from '@mui/icons-material/Category';
 import AutoStories from '@mui/icons-material/AutoStories';
 import EmojiEventsIcon from '@mui/icons-material/EmojiEvents';
-import LinearProgress from '@mui/material/LinearProgress';
 import { Pie, Bar } from 'react-chartjs-2';
 
 const PricingCard = styled(Paper)(({ theme }) => ({

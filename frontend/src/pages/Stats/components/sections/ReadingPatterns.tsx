@@ -2,7 +2,7 @@ import React from 'react';
 import Grid2 from '@mui/material/Grid2';
 import { StatCard } from '../../../../components/Stats/StatCard';
 import { FeatureSection } from '../../../../components/Stats/FeatureSection';
-import { Book } from '../../../../types/Book';
+import { Book } from '../../../../types/book';
 import WbSunnyIcon from '@mui/icons-material/WbSunny';
 import SpeedIcon from '@mui/icons-material/Speed';
 import DirectionsRunIcon from '@mui/icons-material/DirectionsRun';

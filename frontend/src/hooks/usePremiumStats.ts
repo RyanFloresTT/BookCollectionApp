@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { Book } from '../types/Book';
+import { Book } from '../types/book';
 
 interface PremiumStats {
   currentStreak: number;

@@ -106,9 +106,9 @@ export const SettingsDialog: React.FC<SettingsDialogProps> = ({ open, onClose })
           flexShrink: 0
         }}>
           <Tabs value={activeTab} onChange={handleTabChange}>
-            <Tab label="Theme" />
-            <Tab label="Subscription" />
-            <Tab label="Reading Streak" />
+            <Tab aria-label="Theme" label="Theme" />
+            <Tab aria-label="Subscription" label="Subscription" />
+            <Tab aria-label="Reading Streak" label="Reading Streak" />
           </Tabs>
         </Box>
         <Box sx={{ 

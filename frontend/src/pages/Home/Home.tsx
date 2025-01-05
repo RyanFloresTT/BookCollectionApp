@@ -8,7 +8,7 @@ import AutoGraphIcon from '@mui/icons-material/AutoGraph';
 import { styled } from '@mui/material/styles';
 import ManualBookEntry from '../../components/ManualBookEntry/ManualBookEntry';
 import { useNavigate } from 'react-router-dom';
-import { Bar, Pie } from 'react-chartjs-2';
+import { Bar } from 'react-chartjs-2';
 
 const HeroSection = styled(Paper)(({ theme }) => ({
   padding: theme.spacing(8),

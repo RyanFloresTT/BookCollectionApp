@@ -4,7 +4,7 @@ import {
   Typography,
   Paper,
   Button,
-  Grid,
+  Grid2,
   ToggleButtonGroup,
   ToggleButton,
   useTheme,
@@ -79,16 +79,16 @@ export const ThemeSettings: React.FC<ThemeSettingsProps> = ({
           <Typography variant="body1" paragraph>
             Unlock additional theme colors:
           </Typography>
-          <Grid container spacing={2} sx={{ mb: 2, justifyContent: 'center' }}>
-            <Grid item xs={12} sm={6}>
+          <Grid2 container spacing={2} sx={{ mb: 2, justifyContent: 'center' }}>
+            <Grid2 size={{xs: 12, sm:6}}>
               <Typography>🎨 Blue Theme</Typography>
               <Typography>🌿 Green Theme</Typography>
-            </Grid>
-            <Grid item xs={12} sm={6}>
+            </Grid2>
+            <Grid2 size={{xs: 12, sm:6}}>
               <Typography>💜 Purple Theme</Typography>
               <Typography>❤️ Red Theme</Typography>
-            </Grid>
-          </Grid>
+            </Grid2>
+          </Grid2>
           <Button
             variant="contained"
             color="primary"
@@ -128,9 +128,9 @@ export const ThemeSettings: React.FC<ThemeSettingsProps> = ({
         <Divider sx={{ my: 3 }} />
 
         <Typography variant="subtitle1" gutterBottom>Color</Typography>
-        <Grid container spacing={2}>
+        <Grid2 container spacing={2}>
           {colorOptions.map((option) => (
-            <Grid item xs={6} sm={3} key={option.value}>
+            <Grid2 size={{xs: 12, sm:6}} key={option.value}>
               <Button
                 fullWidth
                 variant={currentColor === option.value ? 'contained' : 'outlined'}
@@ -163,9 +163,9 @@ export const ThemeSettings: React.FC<ThemeSettingsProps> = ({
                 />
                 {option.label}
               </Button>
-            </Grid>
+            </Grid2>
           ))}
-        </Grid>
+        </Grid2>
       </Box>
 
       <Box sx={{ mt: 2, display: 'flex', justifyContent: 'flex-end' }}>

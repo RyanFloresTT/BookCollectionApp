@@ -1,5 +1,5 @@
 import React from 'react';
-import { Typography, Paper, Box, useTheme } from '@mui/material';
+import { Paper, Box, useTheme } from '@mui/material';
 import Grid2 from '@mui/material/Grid2';
 import { Bar, Line, Pie } from 'react-chartjs-2';
 import { getDefaultChartOptions, chartBackgroundColors, chartBorderColors } from '../../../config/chartConfig';

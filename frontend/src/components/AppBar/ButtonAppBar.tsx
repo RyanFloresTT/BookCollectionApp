@@ -1,4 +1,3 @@
-import React from 'react';
 import { Box, AppBar, Typography, Button } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 import { useAuth0 } from '@auth0/auth0-react';

@@ -3,11 +3,9 @@ import { Box, Typography, Paper, LinearProgress } from '@mui/material';
 import Grid2 from '@mui/material/Grid2';
 import { styled } from '@mui/material/styles';
 import { Bar, Pie } from 'react-chartjs-2';
-import ImportExportIcon from '@mui/icons-material/ImportExport';
 import BarChartIcon from '@mui/icons-material/BarChart';
-import EmojiEventsIcon from '@mui/icons-material/EmojiEvents';
 import AutoGraphIcon from '@mui/icons-material/AutoGraph';
-import { MenuBook, AutoStories, Star, Category } from '@mui/icons-material';
+import { MenuBook, AutoStories, Category } from '@mui/icons-material';
 
 export const FeatureCard = styled(Paper)(({ theme }) => ({
   padding: theme.spacing(3),

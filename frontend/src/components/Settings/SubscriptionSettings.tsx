@@ -56,7 +56,7 @@ export const SubscriptionSettings: React.FC<SubscriptionSettingsProps> = ({ stat
 
   return (
     <Box>
-      <Typography variant="h6" gutterBottom>
+      <Typography aria-label="Current Plan" variant="h6" gutterBottom>
         Current Plan: {status.isPremium ? 'Premium' : 'Free'}
       </Typography>
       {status.isPremium && (
