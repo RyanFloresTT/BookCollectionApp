@@ -7,6 +7,7 @@ import BarChartIcon from '@mui/icons-material/BarChart';
 import AutoGraphIcon from '@mui/icons-material/AutoGraph';
 import { styled } from '@mui/material/styles';
 import ManualBookEntry from '../../components/ManualBookEntry/ManualBookEntry';
+import DevelopmentNoticeModal from '../../components/DevelopmentModals/DevelopmentNoticeModal';
 import { useNavigate } from 'react-router-dom';
 import { Bar } from 'react-chartjs-2';
 
