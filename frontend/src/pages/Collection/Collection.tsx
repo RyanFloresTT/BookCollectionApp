@@ -18,6 +18,7 @@ import {
   Button,
   Pagination,
   Grid2,
+  Fab,
 } from '@mui/material';
 import SearchIcon from '@mui/icons-material/Search';
 import FilterListIcon from '@mui/icons-material/FilterList';
@@ -27,9 +28,11 @@ import BookCard from '../../components/BookCard/BookCard';
 import { Book } from '../../types/book';
 import api from '../../services/api';
 import { genres } from '../../components/ManualBookEntry/genres';
+import RecentlyDeleted from '../../components/RecentlyDeleted/RecentlyDeleted';
+import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 
 const Collection: React.FC = () => {
-const { getAccessTokenSilently, isAuthenticated } = useAuth0();
+const { getAccessTokenSilently } = useAuth0();
   const [books, setBooks] = useState<Book[]>([]);
   const [loading, setLoading] = useState(true);
   const [showFilters, setShowFilters] = useState(false);
@@ -42,6 +45,7 @@ const { getAccessTokenSilently, isAuthenticated } = useAuth0();
   const [ratingFilter, setRatingFilter] = useState<number>(0);
   const [maxPageCount, setMaxPageCount] = useState<number>(2000);
   const [pageCountRange, setPageCountRange] = useState<number[]>([0, 2000]);
+  const [isDeletedModalOpen, setIsDeletedModalOpen] = useState(false);
 
   // Filter books using useMemo
   const filteredBooks = useMemo(() => {
@@ -99,11 +103,7 @@ const { getAccessTokenSilently, isAuthenticated } = useAuth0();
     const fetchBooks = async () => {
       try {
         const token = await getAccessTokenSilently();
-        const response = await api.get('/books/collection', {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        });
+        const response = await api.get('/books/collection');
         
         // Ensure we have an array of books
         const booksData: Book[] = Array.isArray(response.data.books) ? response.data.books : [];
@@ -277,6 +277,25 @@ const { getAccessTokenSilently, isAuthenticated } = useAuth0();
             </Grid2>
           ))}
         </Grid2>
+
+        <Fab
+          variant="extended"
+          color="primary"
+          onClick={() => setIsDeletedModalOpen(true)}
+          sx={{
+            position: 'fixed',
+            bottom: 24,
+            left: 24,
+          }}
+        >
+          <DeleteOutlineIcon sx={{ mr: 1 }} />
+          Recently Deleted
+        </Fab>
+
+        <RecentlyDeleted 
+          isOpen={isDeletedModalOpen} 
+          onClose={() => setIsDeletedModalOpen(false)} 
+        />
 
         {/* Pagination - show only if there's more than one page */}
         {totalPages > 1 && (

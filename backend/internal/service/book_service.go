@@ -19,6 +19,7 @@ type BookService interface {
 	UpdateReadingGoal(ctx context.Context, userID string, goal int) error
 	GetReadingGoal(ctx context.Context, userID string) (int, error)
 	GetBookByID(ctx context.Context, userID string, bookID string) (*models.Book, error)
+	GetRecentlyDeletedBooks(ctx context.Context, userID string) ([]models.Book, error)
 	GetDB() *gorm.DB
 }
 
@@ -38,10 +39,13 @@ func (s *bookService) GetDB() *gorm.DB {
 
 // SearchUserBooks searches a user's personal book collection in the local database
 func (s *bookService) GetUserBooks(ctx context.Context, auth0ID string) ([]models.Book, error) {
-	var user models.User
+	user, err := s.GetUserByAuth0ID(ctx, auth0ID)
+	if err != nil {
+		return nil, err
+	}
 
 	// Preload only books without a deleted_at value
-	err := s.DB.Preload("Books", "deleted_at IS NULL").Where("auth0_id = ?", auth0ID).First(&user).Error
+	err = s.DB.Preload("Books", "deleted_at IS NULL").Where("auth0_id = ?", auth0ID).First(&user).Error
 	if err != nil {
 		return nil, fmt.Errorf("failed to find user: %v", err)
 	}
@@ -50,16 +54,16 @@ func (s *bookService) GetUserBooks(ctx context.Context, auth0ID string) ([]model
 
 // AddBook adds a book to the user's collection
 func (s *bookService) AddBook(ctx context.Context, userID string, book models.Book) error {
-	var user models.User
-	if err := s.DB.Where("auth0_id = ?", userID).First(&user).Error; err != nil {
-		return fmt.Errorf("failed to find user: %v", err)
+	user, err := s.GetUserByAuth0ID(ctx, userID)
+	if err != nil {
+		return err
 	}
 
 	// Set the UserID to associate the book with the user
 	book.UserID = user.ID
 
 	// Insert the book into the database
-	err := s.DB.Create(&book).Error
+	err = s.DB.Create(&book).Error
 	if err != nil {
 		return fmt.Errorf("failed to create book: %v", err)
 	}
@@ -96,9 +100,9 @@ func (s *bookService) GetOrCreateUser(ctx context.Context, auth0ID string) (*mod
 
 // DeleteBook removes a book from the user's collection
 func (s *bookService) DeleteBook(ctx context.Context, userID string, bookID uint) error {
-	var user models.User
-	if err := s.DB.Where("auth0_id = ?", userID).First(&user).Error; err != nil {
-		return fmt.Errorf("failed to find user: %v", err)
+	user, err := s.GetUserByAuth0ID(ctx, userID)
+	if err != nil {
+		return err
 	}
 
 	result := s.DB.Where("id = ? AND user_id = ?", bookID, user.ID).Delete(&models.Book{})
@@ -112,13 +116,13 @@ func (s *bookService) DeleteBook(ctx context.Context, userID string, bookID uint
 }
 
 func (s *bookService) FindBookByTitleAndUser(ctx context.Context, title string, userID string) (*models.Book, error) {
-	var user models.User
-	if err := s.DB.Where("auth0_id = ?", userID).First(&user).Error; err != nil {
-		return nil, fmt.Errorf("failed to find user: %v", err)
+	user, err := s.GetUserByAuth0ID(ctx, userID)
+	if err != nil {
+		return nil, err
 	}
 
 	var book models.Book
-	err := s.DB.Where("title = ? AND user_id = ?", title, user.ID).First(&book).Error
+	err = s.DB.Where("title = ? AND user_id = ?", title, user.ID).First(&book).Error
 	if err != nil {
 		if err == gorm.ErrRecordNotFound {
 			return nil, nil
@@ -145,12 +149,9 @@ func (s *bookService) RestoreBook(ctx context.Context, bookID string) error {
 
 // UpdateBook updates all book fields
 func (s *bookService) UpdateBook(ctx context.Context, userID string, bookID string, book models.Book) error {
-	var user models.User
-
-	// Check if the user exists
-	err := s.DB.Where("auth0_id = ?", userID).First(&user).Error
+	user, err := s.GetUserByAuth0ID(ctx, userID)
 	if err != nil {
-		return fmt.Errorf("failed to find user: %v", err)
+		return err
 	}
 
 	// Update the book if it belongs to the user
@@ -180,12 +181,9 @@ func (s *bookService) UpdateBook(ctx context.Context, userID string, bookID stri
 
 // UpdateReadingGoal updates the user's reading goal
 func (s *bookService) UpdateReadingGoal(ctx context.Context, auth0ID string, readingGoal int) error {
-	var user models.User
-
-	// Find the user
-	err := s.DB.Where("auth0_id = ?", auth0ID).First(&user).Error
+	user, err := s.GetUserByAuth0ID(ctx, auth0ID)
 	if err != nil {
-		return fmt.Errorf("failed to find user: %v", err)
+		return err
 	}
 
 	// Update the reading goal
@@ -199,12 +197,9 @@ func (s *bookService) UpdateReadingGoal(ctx context.Context, auth0ID string, rea
 
 // GetReadingGoal gets the user's reading goal
 func (s *bookService) GetReadingGoal(ctx context.Context, auth0ID string) (int, error) {
-	var user models.User
-
-	// Find the user
-	err := s.DB.Where("auth0_id = ?", auth0ID).First(&user).Error
+	user, err := s.GetUserByAuth0ID(ctx, auth0ID)
 	if err != nil {
-		return 0, fmt.Errorf("failed to find user: %v", err)
+		return 0, err
 	}
 
 	return user.ReadingGoal, nil
@@ -212,9 +207,9 @@ func (s *bookService) GetReadingGoal(ctx context.Context, auth0ID string) (int, 
 
 // GetBookByID retrieves a book by its ID and user ID
 func (s *bookService) GetBookByID(ctx context.Context, userID string, bookID string) (*models.Book, error) {
-	var user models.User
-	if err := s.DB.Where("auth0_id = ?", userID).First(&user).Error; err != nil {
-		return nil, fmt.Errorf("failed to find user: %v", err)
+	user, err := s.GetUserByAuth0ID(ctx, userID)
+	if err != nil {
+		return nil, err
 	}
 
 	var book models.Book
@@ -222,4 +217,30 @@ func (s *bookService) GetBookByID(ctx context.Context, userID string, bookID str
 		return nil, err
 	}
 	return &book, nil
+}
+
+// GetRecentlyDeletedBooks retrieves books that have been soft deleted within the last 30 days
+func (s *bookService) GetRecentlyDeletedBooks(ctx context.Context, userID string) ([]models.Book, error) {
+	user, err := s.GetUserByAuth0ID(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+
+	var books []models.Book
+	if err := s.DB.Unscoped().
+		Where("user_id = ? AND deleted_at IS NOT NULL", user.ID).
+		Find(&books).Error; err != nil {
+		return nil, err
+	}
+
+	fmt.Printf("Service: Found %d deleted books for user %s\n", len(books), userID)
+	return books, nil
+}
+
+func (s *bookService) GetUserByAuth0ID(ctx context.Context, auth0ID string) (*models.User, error) {
+	var user models.User
+	if err := s.DB.Where("auth0_id = ?", auth0ID).First(&user).Error; err != nil {
+		return nil, fmt.Errorf("failed to find user: %v", err)
+	}
+	return &user, nil
 }
