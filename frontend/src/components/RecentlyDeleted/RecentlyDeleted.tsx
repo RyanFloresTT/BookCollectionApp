@@ -7,9 +7,10 @@ import { useState, useEffect } from 'react';
 interface Props {
   isOpen: boolean;
   onClose: () => void;
+  onBookRestored: () => void;
 }
 
-const RecentlyDeleted: React.FC<Props> = ({ isOpen, onClose }) => {
+const RecentlyDeleted: React.FC<Props> = ({ isOpen, onClose, onBookRestored }) => {
   const [recentlyDeletedBooks, setRecentlyDeletedBooks] = useState<Book[]>([]);
 
   useEffect(() => {
@@ -34,6 +35,9 @@ const RecentlyDeleted: React.FC<Props> = ({ isOpen, onClose }) => {
     try {
       await restoreBook(bookId);
       setRecentlyDeletedBooks(books => books.filter(book => book.ID !== bookId));
+      if (onBookRestored) {
+        onBookRestored();
+      }
     } catch (error) {
       console.error('Failed to restore book:', error);
     }

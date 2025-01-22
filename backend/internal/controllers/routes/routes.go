@@ -68,7 +68,7 @@ func SetupRouter(r *chi.Mux, db *gorm.DB) {
 		r.Post("/add", bookController.AddBook)
 		r.Delete("/{id}", bookController.DeleteBook)
 		r.Patch("/{id}", bookController.UpdateBook)
-		r.Put("/restore/{id}", bookController.RestoreBook)
+		r.Put("/{id}/restore", bookController.RestoreBook)
 	})
 
 	// User routes

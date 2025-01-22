@@ -26,10 +26,10 @@ import ClearIcon from '@mui/icons-material/Clear';
 import { useAuth0 } from '@auth0/auth0-react';
 import BookCard from '../../components/BookCard/BookCard';
 import { Book } from '../../types/book';
-import api from '../../services/api';
 import { genres } from '../../components/ManualBookEntry/genres';
 import RecentlyDeleted from '../../components/RecentlyDeleted/RecentlyDeleted';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
+import { fetchBooks as fetchBooksService } from '../../services/bookService';
 
 const Collection: React.FC = () => {
 const { getAccessTokenSilently } = useAuth0();
@@ -99,33 +99,19 @@ const { getAccessTokenSilently } = useAuth0();
   }, [searchQuery, selectedGenres, ratingFilter, pageCountRange]);
 
   // Fetch books from API
+  const fetchBooks = async () => {
+    setLoading(true);
+    const booksData = await fetchBooksService(getAccessTokenSilently);
+    const maxPages = Math.max(2000, ...booksData.map(book => book.page_count || 0));
+    setMaxPageCount(maxPages);
+    setPageCountRange([0, maxPages]);
+    setBooks(booksData);
+    setLoading(false);
+  };
+
   useEffect(() => {
-    const fetchBooks = async () => {
-      try {
-        const token = await getAccessTokenSilently();
-        const response = await api.get('/books/collection');
-        
-        // Ensure we have an array of books
-        const booksData: Book[] = Array.isArray(response.data.books) ? response.data.books : [];
-
-        // Calculate max page count
-        const maxPages = Math.max(
-          2000, // minimum default
-          ...booksData.map(book => book.page_count || 0)
-        );
-        setMaxPageCount(maxPages);
-        setPageCountRange([0, maxPages]); // Update the range to include all books
-        setBooks(booksData);
-      } catch (error) {
-        console.error('Error fetching books:', error);
-        setBooks([]);
-      } finally {
-        setLoading(false);
-      }
-    };
-
     fetchBooks();
-  }, [getAccessTokenSilently]);
+  }, []);
 
   const handleGenreChange = (event: any) => {
     const value = event.target.value;
@@ -295,6 +281,9 @@ const { getAccessTokenSilently } = useAuth0();
         <RecentlyDeleted 
           isOpen={isDeletedModalOpen} 
           onClose={() => setIsDeletedModalOpen(false)} 
+          onBookRestored={() => {
+            fetchBooks();
+          }}
         />
 
         {/* Pagination - show only if there's more than one page */}

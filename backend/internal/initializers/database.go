@@ -20,11 +20,6 @@ func InitializeDatabase() *gorm.DB {
 		log.Fatalf("Failed to connect to database: %v", err)
 	}
 
-	// Drop streak_settings table to handle type change
-	if err := db.Exec("DROP TABLE IF EXISTS streak_settings").Error; err != nil {
-		log.Printf("Warning: Failed to drop streak_settings table: %v", err)
-	}
-
 	// Auto-migrate models
 	err = db.AutoMigrate(&models.Book{})
 	if err != nil {
