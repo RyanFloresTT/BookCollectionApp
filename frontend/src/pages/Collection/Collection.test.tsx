@@ -57,7 +57,7 @@ describe('Collection Component', () => {
 
     // Wait for the API call to be made
     await waitFor(() => {
-      expect(api.get).toHaveBeenCalledWith('/books/collection', expect.any(Object));
+      expect(api.get).toHaveBeenCalledWith('/books/collection');
     });
 
     // Wait for books to appear and verify they're displayed

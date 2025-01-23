@@ -468,3 +468,36 @@ func (bc *BookController) GetReadingGoal(w http.ResponseWriter, r *http.Request)
 		"readingGoal": goal,
 	})
 }
+
+// GetRecentlyDeletedBooks returns books soft deleted within the last 30 days
+func (bc *BookController) GetRecentlyDeletedBooks(w http.ResponseWriter, r *http.Request) {
+	userID := r.Context().Value(middleware.UserIDKey).(string)
+	fmt.Printf("Fetching recently deleted books for user: %s\n", userID)
+
+	books, err := bc.BookService.GetRecentlyDeletedBooks(r.Context(), userID)
+	if err != nil {
+		fmt.Printf("Error fetching deleted books: %v\n", err)
+		http.Error(w, fmt.Sprintf("Failed to get recently deleted books: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	fmt.Printf("Found %d deleted books\n", len(books))
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(books)
+}
+
+// RestoreBook handles PUT /api/books/restore/{id}
+func (bc *BookController) RestoreBook(w http.ResponseWriter, r *http.Request) {
+	bookID := chi.URLParam(r, "id")
+	err := bc.BookService.RestoreBook(r.Context(), bookID)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Failed to restore book: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]string{
+		"message": "Book restored successfully",
+	})
+}

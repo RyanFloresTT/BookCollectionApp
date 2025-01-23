@@ -64,9 +64,11 @@ func SetupRouter(r *chi.Mux, db *gorm.DB) {
 	r.Route("/api/books", func(r chi.Router) {
 		r.Use(authMiddleware.Handler)
 		r.Get("/collection", bookController.GetUserBooks)
+		r.Get("/recently-deleted", bookController.GetRecentlyDeletedBooks)
 		r.Post("/add", bookController.AddBook)
 		r.Delete("/{id}", bookController.DeleteBook)
 		r.Patch("/{id}", bookController.UpdateBook)
+		r.Put("/{id}/restore", bookController.RestoreBook)
 	})
 
 	// User routes

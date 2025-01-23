@@ -1,5 +1,5 @@
 export interface Book {
-  ID: number;
+  ID: number; // This needs to be capitalized because of the backend. We're using GORM and it's the default name for the primary key.
   title: string;
   author: string;
   genre?: string;
